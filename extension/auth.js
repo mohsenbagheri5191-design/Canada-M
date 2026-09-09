@@ -283,7 +283,14 @@ function renderQuota(quota) {
 
   const used = Number(quota.used) || 0;
   const limit = Number(quota.limit) || 0;
-  const remaining = Math.max(0, Number(quota.remaining) ?? limit - used);
+
+  // Number(undefined) is NaN, and `??` does not catch NaN, so derive the
+  // fallback explicitly rather than letting NaN reach the width calculation.
+  const reported = Number(quota.remaining);
+  const remaining = Number.isFinite(reported)
+    ? Math.max(0, reported)
+    : Math.max(0, limit - used);
+
   const pct = limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
 
   $("amrQuotaText").textContent =

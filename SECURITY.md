@@ -6,6 +6,64 @@ residual risk is more useful than a list of controls.
 
 ---
 
+## Verified against the live deployment
+
+Every claim below was tested against the deployed project, not reasoned about.
+26 of 26 checks pass. Re-run them yourself with:
+
+```bash
+./scripts/verify-bundle.sh                              # 16 static checks
+./scripts/acceptance-test.sh you@example.com 'password' # 26 live checks
+```
+
+| | Result |
+|---|---|
+| No `Authorization` header | `401 missing_token` |
+| Invalid JWT | `401 invalid_token` |
+| Origin not on the allowlist | `403 origin_not_allowed`, no CORS headers |
+| No `Origin` header at all | `403 origin_not_allowed` |
+| Non-admin calls `admin-users` | `403 not_admin` |
+| Non-admin calls `admin-usage` | `403 not_admin` |
+| Quota of 2: requests 1 and 2 | `200` |
+| Quota of 2: request 3 | `403 quota_exceeded` |
+| Disable, then reuse the **same** token | `403 account_disabled` |
+| Re-enable, same token | `200` |
+| `access_expires_at` in the past | `403 account_expired` |
+| Kill switch on, normal user | `503 kill_switch` |
+| Kill switch on, **admin** | `503 kill_switch` |
+| Kill switch on, `admin-users` | `200` (not a one-way door) |
+| Kill switch off | `200` |
+| Deleted account, same token | `401 invalid_token` |
+| Refresh token exchange | `200`, new access token works |
+| Revoked refresh token | `400 refresh_token_not_found` |
+| Access token after sign-out | `401 invalid_token` |
+| Unknown `op` / empty `items` | `400 bad_request` |
+| `anon` reads any of the four tables | denied |
+| Signed-in user reads `profiles` | own row only (1 of 2) |
+| Signed-in user writes anything | denied |
+| Admin writes a profile directly | denied |
+| Audit log after 9 admin actions | all 9 recorded and attributed |
+| Bundle grep for coefficients and keys | 16/16 clean |
+
+The disable test is the important one. It reuses the *same access token* the
+user already held — no sign-out, no expiry, no refresh — and the request is
+refused, because the server re-reads the profile row on every call.
+
+**Numerical parity.** The scoring port was checked against the original V29
+client over 20,000 randomised listings covering 16 output fields each: 320,000
+comparisons, zero mismatches. The deployed function was then spot-checked
+against the same local implementation and agreed exactly (rank 1200, price
+24.99, 340 reviews, family 3 → 36 units, $899.64, Low confidence).
+
+**One note on refresh tokens.** Supabase tolerates replaying a just-spent
+refresh token for about 10 seconds, returning the same new session. That is
+deliberate: two browser tabs refreshing at the same moment must not sign the
+user out. A genuinely revoked token fails with `400 refresh_token_not_found`,
+and the client treats any non-200 as unrecoverable — it clears the session and
+shows the login form rather than retrying, so there is no loop either way.
+
+---
+
 ## What is protected
 
 ### The scoring model

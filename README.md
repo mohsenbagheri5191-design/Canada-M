@@ -157,11 +157,19 @@ still need a human: **[SETUP.md](SETUP.md)**
 What is protected, what a determined user can still see, and the residual
 risks: **[SECURITY.md](SECURITY.md)**
 
-Before packaging a release:
+Two test suites, both runnable against the live deployment:
 
 ```bash
-./scripts/verify-bundle.sh
+./scripts/verify-bundle.sh                              # 16 static checks
+./scripts/acceptance-test.sh you@example.com 'password' # 26 live checks
 ```
+
+The first greps the shipped bundle for every coefficient, threshold and
+credential that must not be there. Run it before packaging any release. The
+second drives a throwaway account through every failure state — disabled,
+expired, over quota, non-admin, kill switch, revoked token — and cleans up
+after itself. All 42 currently pass; the results are tabulated in
+[SECURITY.md](SECURITY.md).
 
 ---
 

@@ -19,7 +19,7 @@ import {
   signIn,
   signOut,
 } from "./lib/session.js";
-import { ApiError, ApiErrorCode, callFunction, fetchMe, research } from "./lib/api.js";
+import { ApiError, ApiErrorCode, fetchMe, research } from "./lib/api.js";
 import { enrich, requestStop, search } from "./lib/amazon.js";
 
 lockDownSessionStorage();
@@ -153,14 +153,6 @@ const handlers = {
       brandAnalysis: result.brandAnalysis,
       quota: result.quota,
     });
-  },
-
-  /** Admin endpoints, proxied so the dashboard never handles tokens either. */
-  async ADMIN({ endpoint, body }) {
-    if (endpoint !== "admin-users" && endpoint !== "admin-usage") {
-      throw new Error("Unknown admin endpoint.");
-    }
-    return ok(await callFunction(endpoint, body));
   },
 
   /**

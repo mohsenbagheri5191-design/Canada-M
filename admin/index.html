@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Amazon Market Research Pro — Admin</title>
+<!--
+  Self-contained admin console. No build step, no framework, no bundler:
+  three files served as static assets.
+
+  It holds no privileged credential. It signs in with the same public anon key
+  the extension uses, and every privileged action goes to the admin-* Edge
+  Functions, which verify server side that the caller is an active admin before
+  doing anything. Opening dev tools here reveals the same two public values the
+  extension carries and nothing more.
+-->
+<link rel="stylesheet" href="admin.css">
+</head>
+<body class="locked">
+
+<!-- Login gate ---------------------------------------------------------- -->
+<div id="gate">
+  <form class="card" id="loginForm">
+    <div class="brand">
+      <span class="mark">AMR</span>
+      <div><b>Admin console</b><small>Amazon Market Research Pro</small></div>
+    </div>
+    <div class="notice error" id="loginError" hidden></div>
+    <div class="field">
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="username" required>
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input id="password" type="password" autocomplete="current-password" required>
+    </div>
+    <button class="primary" id="loginButton" type="submit">Sign in</button>
+    <p class="foot">Administrator accounts only.</p>
+  </form>
+</div>
+
+<!-- Console ------------------------------------------------------------- -->
+<div id="app" hidden>
+  <header class="topbar">
+    <div class="brand">
+      <span class="mark">AMR</span>
+      <div><b>Admin console</b><small id="whoami">—</small></div>
+    </div>
+    <nav class="tabs">
+      <button data-view="users" class="active" type="button">Users</button>
+      <button data-view="usage" type="button">Usage</button>
+      <button data-view="settings" type="button">Settings</button>
+      <button data-view="audit" type="button">Audit log</button>
+    </nav>
+    <button id="signOut" class="ghost" type="button">Sign out</button>
+  </header>
+
+  <div id="killBanner" class="killBanner" hidden>
+    <b>Kill switch is ON.</b>
+    <span>Every user is blocked from the product right now. This console still works.</span>
+    <button id="killOff" type="button">Turn it off</button>
+  </div>
+
+  <main>
+    <!-- Users -->
+    <section id="view-users" class="view">
+      <div class="viewHead">
+        <div><h1>Users</h1><p id="userCount">Loading…</p></div>
+        <button class="primary" id="newUser" type="button">Create user</button>
+      </div>
+      <div class="tableWrap"><table id="usersTable"></table></div>
+    </section>
+
+    <!-- Usage -->
+    <section id="view-usage" class="view" hidden>
+      <div class="viewHead">
+        <div><h1>Usage</h1><p>Calls, users and most-requested references.</p></div>
+        <label class="inlineField">Window
+          <select id="usageDays">
+            <option value="7">7 days</option>
+            <option value="30" selected>30 days</option>
+            <option value="90">90 days</option>
+            <option value="365">365 days</option>
+          </select>
+        </label>
+      </div>
+      <div class="kpis" id="usageKpis"></div>
+      <div class="panelGrid">
+        <div class="panel"><h2>Calls over time</h2><div id="usageChart" class="chart"></div></div>
+        <div class="panel"><h2>Calls per user</h2><div id="usageByUser"></div></div>
+        <div class="panel"><h2>Most requested</h2><div id="usageTopRefs"></div></div>
+        <div class="panel"><h2>By endpoint</h2><div id="usageByEndpoint"></div></div>
+      </div>
+    </section>
+
+    <!-- Settings -->
+    <section id="view-settings" class="view" hidden>
+      <div class="viewHead"><div><h1>Settings</h1><p>Global controls. Changes take effect on the next request.</p></div></div>
+
+      <div class="panel danger">
+        <h2>Global kill switch</h2>
+        <p>
+          Blocks every user from the product immediately, including you. This
+          console and the rest of the admin API stay reachable so you can turn
+          it back off.
+        </p>
+        <label class="switch">
+          <input id="killSwitch" type="checkbox">
+          <span>Block all product access</span>
+        </label>
+        <div class="field">
+          <label for="killMessage">Maintenance message shown in the extension</label>
+          <input id="killMessage" type="text">
+        </div>
+        <button class="primary" id="saveKill" type="button">Save kill switch</button>
+      </div>
+
+      <div class="panel">
+        <h2>Defaults</h2>
+        <div class="field">
+          <label for="defaultQuota">Default monthly request quota for new users</label>
+          <input id="defaultQuota" type="number" min="0" step="1">
+        </div>
+        <button class="primary" id="saveDefaults" type="button">Save defaults</button>
+      </div>
+
+      <div class="panel">
+        <h2>CORS allowlist</h2>
+        <p>
+          Origins permitted to call the API. Add a new extension ID here after
+          a rebuild changes it. Ignored when the ALLOWED_ORIGINS Edge Function
+          secret is set, which takes precedence.
+        </p>
+        <div class="field">
+          <label for="allowedOrigins">Comma-separated origins</label>
+          <input id="allowedOrigins" type="text" spellcheck="false">
+        </div>
+        <button class="primary" id="saveOrigins" type="button">Save allowlist</button>
+      </div>
+    </section>
+
+    <!-- Audit -->
+    <section id="view-audit" class="view" hidden>
+      <div class="viewHead"><div><h1>Audit log</h1><p>Every administrative action, newest first.</p></div></div>
+      <div class="tableWrap"><table id="auditTable"></table></div>
+    </section>
+  </main>
+</div>
+
+<!-- User editor --------------------------------------------------------- -->
+<dialog id="userDialog">
+  <form method="dialog" id="userForm">
+    <h2 id="userDialogTitle">Create user</h2>
+    <div class="notice error" id="userError" hidden></div>
+
+    <div class="field">
+      <label for="uEmail">Email</label>
+      <input id="uEmail" type="email" required>
+    </div>
+
+    <div class="field" id="passwordField">
+      <label for="uPassword">Temporary password</label>
+      <div class="withButton">
+        <input id="uPassword" type="text" minlength="12" spellcheck="false">
+        <button type="button" id="genPassword">Generate</button>
+      </div>
+      <small>At least 12 characters. You hand this to the user yourself; there is no reset email.</small>
+    </div>
+
+    <div class="field"><label for="uName">Full name</label><input id="uName" type="text"></div>
+
+    <div class="row">
+      <div class="field">
+        <label for="uRole">Role</label>
+        <select id="uRole"><option value="user">User</option><option value="admin">Admin</option></select>
+      </div>
+      <div class="field">
+        <label for="uQuota">Monthly quota</label>
+        <input id="uQuota" type="number" min="0" step="1">
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="uExpiry">Access expires (optional)</label>
+      <input id="uExpiry" type="date">
+    </div>
+
+    <div class="field"><label for="uNotes">Notes</label><textarea id="uNotes" rows="2"></textarea></div>
+
+    <div class="dialogActions">
+      <button type="button" class="ghost" id="cancelUser">Cancel</button>
+      <button type="submit" class="primary" id="saveUser">Create user</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" hidden></div>
+
+<script src="config.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>

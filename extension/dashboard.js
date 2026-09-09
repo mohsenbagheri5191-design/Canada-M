@@ -1,22 +1,1068 @@
-const __nc={add(){},remove(){},toggle(){return false}};const __ne=new Proxy({value:'',files:[],style:{},dataset:{},classList:__nc,selectedOptions:[{text:''}],querySelector(){return __ne},querySelectorAll(){return[]},prepend(){},insertAdjacentElement(){},insertAdjacentHTML(){}},{get:(t,k)=>k in t?t[k]:'',set:(t,k,v)=>(t[k]=v,true)});const $=id=>document.getElementById(id)||__ne;function inlineLoaderHost(){let active=document.querySelector('.tab:not(.hidden)')||$('light'),loader=$('searchLoader');loader.classList.add('inlineSearchLoader');loader.classList.remove('hidden');let status=active.querySelector('.status');if(status)status.insertAdjacentElement('afterend',loader);else active.prepend(loader);return loader}function showLoader(title='Starting search',message='Preparing Amazon...'){inlineLoaderHost();$('loaderTitle').textContent=title;$('loaderMessage').textContent=message;$('loaderBar').style.width='4%';$('loaderStep').textContent='1';$('loaderPage').textContent='0 / 0';$('loaderProducts').textContent='0';$('loaderDone').textContent='0 / 0';$('loaderCurrent').textContent=message}function updateLoader(o={}){if(o.title)$('loaderTitle').textContent=o.title;if(o.message)$('loaderMessage').textContent=o.message;if(o.stage)$('loaderStep').textContent=o.stage;if(o.page!=null)$('loaderPage').textContent=`${o.page} / ${o.total||o.page}`;if(o.count!=null)$('loaderProducts').textContent=o.count;if(o.done!=null)$('loaderDone').textContent=`${o.done} / ${o.total||o.done}`;if(o.current)$('loaderCurrent').textContent=o.current;let v=o.percent??(o.done!=null&&o.total?o.done/o.total*100:o.page!=null&&o.total?o.page/o.total*42:8);$('loaderBar').style.width=Math.max(4,Math.min(100,v))+'%'}function hideLoader(success=true){updateLoader({title:success?'Search complete':'Search stopped',message:success?'Results are ready.':'The operation ended.',percent:100});setTimeout(()=>$('searchLoader').classList.add('hidden'),success?900:250)}$('loaderStop').onclick=()=>{chrome.runtime.sendMessage({type:'STOP'});hideLoader(false)};let lightRaw=[],lightView=[],deepAll=[],deepView=[],analysisFileRows=[],analysisRows=[],asinFileRows=[];
-async function enrichSafe(items,options={}){const unique=[...new Map((items||[]).filter(x=>x?.asin).map(x=>[x.asin,x])).values()],all=[],batchSize=12;for(let i=0;i<unique.length;i+=batchSize){const r=await chrome.runtime.sendMessage({type:'ENRICH',items:unique.slice(i,i+batchSize),s:options});if(r?.error)throw new Error(r.error);all.push(...(r?.items||[]));updateLoader({done:Math.min(i+batchSize,unique.length),total:unique.length,count:all.length,percent:42+Math.min(i+batchSize,unique.length)/Math.max(1,unique.length)*56})}return{items:all}}
+/**
+ * Deep Search and analysis dashboards.
+ *
+ * What changed in the rebuild: this file no longer knows how to turn a sales
+ * rank into a number of units. It collects observable facts, sends them to the
+ * service worker, and renders whatever comes back. Searching `Math.exp` or
+ * `Math.log` in this file finds nothing, and that is the point.
+ *
+ * It also no longer calls the SheetJS `XLSX` global, which the V29 build
+ * referenced in three places without ever loading it. Every CSV export and
+ * every file upload threw ReferenceError. Reading now goes through
+ * ProductWorkbook (product-workbook.js) and writing through
+ * writeExactProductXlsx (xlsx-export.js), both of which were already in the
+ * bundle and already worked.
+ */
 
-const input=(p,id,l,t='text',x='')=>`<div><label>${l}</label><input id="${p}${id}" type="${t}" ${x}></div>`,select=(p,id,l,o)=>`<div><label>${l}</label><select id="${p}${id}">${o.map(x=>`<option value="${x[0]}">${x[1]}</option>`).join('')}</select></div>`;
-function filters(p){return input(p,'Min','Price Min','number','step=".01"')+input(p,'Max','Price Max','number','step=".01"')+input(p,'In','Title Contains')+input(p,'Out','Title Does Not Contain')+input(p,'Brand','Brand')+select(p,'Sponsored','Sponsored',[['exclude','No'],['all','All'],['only','Only sponsored']])+select(p,'Dedupe','Remove Duplicates',[['yes','Yes'],['no','No']])+select(p,'Sort','Sort By',[['name','Title'],['priceNumber','Price'],['rankNumber','Main Rank'],['bsrEstimatedUnitsMid','Monthly Units'],['reviewCountNumber','Reviews']])+select(p,'Dir','Direction',[['asc','Low to high / A–Z'],['desc','High to low / Z–A']]);}
-$('f1').innerHTML=select('a','Market','Marketplace',[['ca','Amazon.ca'],['com','Amazon.com']])+input('a','Keyword','Keyword / Search Term')+input('a','Pages','Pages (0 = all available)','number','value="3" min="0" step="1"')+filters('a');$('f2').innerHTML=filters('b')+select('b','Con','Parallel Background Workers',[['1','1'],['2','2'],['3','3'],['4','4'],['5','5'],['6','6'],['8','8'],['10','10']])+input('b','Delay','Delay Seconds','number','value="4"');$('f3').innerHTML=filters('c');
-$('deepInputs').innerHTML=input('d','Keyword','Keyword for Deep Search')+select('d','Market','Marketplace',[['ca','Amazon.ca'],['com','Amazon.com']])+input('d','Pages','Pages (0 = all available)','number','value="3" min="0" step="1"')+`<div><label>Upload ASIN file</label><input id="asinFile" type="file" accept=".txt,.csv,.tsv,.xlsx,.xls"></div><div style="grid-column:span 2"><label>Or paste ASINs</label><textarea id="asinPaste" placeholder="One ASIN per line, or comma-separated"></textarea></div>`;
-const calibration=[[500,803],[724,611],[1000,482],[2000,268],[5000,107],[10000,54]];
-const cols=['imageLink','name','asin','requestedAsin','canonicalAsin','canonicalUrl','parentAsin','isVariation','variationType','selectedVariation','variationCount','familyEstimatedUnits','childAllocationShare','packQuantity','estimateReason','price','originalPrice','discountPercentage','review','reviewCount','amazonBadgeMinimumUnits','bsrEstimatedUnitsMid','bsrEstimatedRevenueMid','rank','rankCategory','subcategoryRank','rankedSubcategory','brand','manufacturer','productDimensions','packageDimensions','itemWeight','countryOfOrigin','availability','buyBoxSeller','shipsFrom','hasAPlus','galleryImageCount','sponsored','itemLink','status'],labels={imageLink:'Image',name:'Title',asin:'ASIN',requestedAsin:'Requested ASIN',canonicalAsin:'Canonical ASIN',canonicalUrl:'Canonical URL',parentAsin:'Parent ASIN',isVariation:'Child Variation',variationType:'Variation Type',selectedVariation:'Selected Variation',variationCount:'Family Size',familyEstimatedUnits:'Family Est. Units',childAllocationShare:'Child Share',price:'Price',originalPrice:'Was Price',discountPercentage:'Discount',review:'Rating',reviewCount:'Reviews',amazonBadgeMinimumUnits:'Amazon Badge Units',bsrEstimatedUnitsMid:'Estimated Monthly Units',bsrEstimatedRevenueMid:'Estimated Sales Value',rank:'Main Rank',rankCategory:'Main Category',subcategoryRank:'Sub Rank',rankedSubcategory:'Subcategory',brand:'Brand',manufacturer:'Manufacturer',productDimensions:'Product Size',packageDimensions:'Package Size',itemWeight:'Weight',countryOfOrigin:'Origin',availability:'Availability',buyBoxSeller:'Buy Box Seller',shipsFrom:'Ships From',hasAPlus:'A+ Content',galleryImageCount:'Images',sponsored:'Sponsored',itemLink:'Product Link',status:'Status'};
-const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),num=v=>{let m=String(v??'').replace(/,/g,'').match(/[\d.]+/);return m?+m[0]:null},terms=id=>$(id).value.toLowerCase().split(',').map(x=>x.trim()).filter(Boolean);
-function filterRows(rows,p){let inc=terms(p+'In'),out=terms(p+'Out'),brands=terms(p+'Brand'),min=$(p+'Min').value===''?null:+$(p+'Min').value,max=$(p+'Max').value===''?null:+$(p+'Max').value,seen=new Set(),sp=$(p+'Sponsored').value,a=rows.filter(x=>{let t=(x.name||'').toLowerCase(),b=(x.brand||'').toLowerCase(),dup=seen.has(x.asin);seen.add(x.asin);return($(p+'Dedupe').value==='no'||!dup)&&(sp==='all'||(sp==='only'?x.sponsored:!x.sponsored))&&(min==null||x.priceNumber>=min)&&(max==null||x.priceNumber<=max)&&(!inc.length||inc.some(w=>t.includes(w)))&&!out.some(w=>t.includes(w))&&(!brands.length||brands.some(w=>b.includes(w)))}),k=$(p+'Sort').value,d=$(p+'Dir').value==='desc'?-1:1;return a.sort((x,y)=>{let A=x[k]??'',B=y[k]??'';return(typeof A==='number'&&typeof B==='number'?(A-B):String(A).localeCompare(String(B),undefined,{numeric:true}))*d})}
-const headerState={};function applyHeader(a,id){for(const[k,f]of Object.entries(headerState[id]||{})){if(f.op==='asc'||f.op==='desc'){let d=f.op==='desc'?-1:1;a.sort((x,y)=>String(x[k]??'').localeCompare(String(y[k]??''),undefined,{numeric:true})*d)}else a=a.filter(x=>{let s=String(x[k]??'').toLowerCase(),w=String(f.v).toLowerCase(),n=num(x[k]),q=num(f.v);return f.op==='contains'?s.includes(w):f.op==='not'? !s.includes(w):f.op==='lt'?n<q:f.op==='gt'?n>q:s===w})}return a}
-function render(id,rows){rows=applyHeader([...rows],id);let menu=(k)=>`<select class="hf" data-k="${k}"><option value="">Filter</option><option value="asc">Low → High</option><option value="desc">High → Low</option><option value="lt">Less than</option><option value="gt">Greater than</option><option value="contains">Contains</option><option value="not">Does not contain</option><option value="clear">Clear</option></select>`,h='<table><thead><tr>'+cols.map(k=>`<th>${labels[k]}<br>${menu(k)}</th>`).join('')+'</tr></thead><tbody>';for(const x of rows)h+='<tr>'+cols.map(k=>k==='imageLink'&&x[k]?`<td><img class="thumb" src="${esc(x[k])}"></td>`:`<td>${esc(typeof x[k]==='boolean'?(x[k]?'Yes':'No'):x[k])}</td>`).join('')+'</tr>';$(id).innerHTML=h+'</tbody></table>';document.querySelectorAll(`#${id} .hf`).forEach(s=>s.onchange=()=>{let op=s.value,k=s.dataset.k;if(!headerState[id])headerState[id]={};if(op==='clear'||!op)delete headerState[id][k];else if(op==='asc'||op==='desc')headerState[id][k]={op};else{let v=prompt(`${labels[k]} value`);if(v!==null)headerState[id][k]={op,v}}render(id,rows)})}
-function cleanLabeledDetail(v,label=''){let t=String(v??'').replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069\u00ad]/g,' ').replace(/\s+/g,' ').trim();if(!t)return'';const names=[label,'Manufacturer','Item Model Number','Model Number','Product Dimensions','Item Dimensions','Country of Origin'].filter(Boolean).map(x=>String(x).replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));return t.replace(new RegExp('^(?:'+names.join('|')+')\\s*[:：-]\\s*','i'),'').trim()}function cleanKnownDetails(x){x.manufacturer=cleanLabeledDetail(x.manufacturer,'Manufacturer');x.itemModelNumber=cleanLabeledDetail(x.itemModelNumber,'Item Model Number');x.productDimensions=cleanLabeledDetail(x.productDimensions,'Product Dimensions');x.countryOfOrigin=cleanLabeledDetail(x.countryOfOrigin,'Country of Origin');return x}function packQuantity(x){let t=`${x.name||''} ${x.selectedVariation||''}`.toLowerCase(),vals=[],patterns=[/(\d[\d,]*)\s*(?:pack|pk)\b/g,/pack of\s*(\d[\d,]*)/g,/case pack(?: of)?\s*(\d[\d,]*)/g,/(\d[\d,]*)\s*sets?\b/g,/(\d[\d,]*)\s*binders?\b/g];for(const re of patterns){let m;while((m=re.exec(t)))vals.push(+m[1].replace(/,/g,''))}return Math.max(1,...vals.filter(v=>v>0&&v<1000))}function estimate(x){x=cleanKnownDetails(x);let rank=num(x.rank),reviews=num(x.reviewCount)||0,badge=num(x.amazonBadgeMinimumUnits)||0,price=num(x.priceNumber)||num(x.price),family=Math.max(1,num(x.variationCount)||num(x.familySize)||1);x.rankNumber=rank;x.reviewCountNumber=reviews;x.amazonBadgeMinimumUnits=badge;x.priceNumber=price;x.packQuantity=packQuantity(x);x.familyKey=x.parentAsin||x.asin;x.familySize=family;x.familyEstimatedUnits='';x.childAllocationShare='';if(!rank||!price){x.bsrEstimatedUnitsLow='';x.bsrEstimatedUnitsMid='';x.bsrEstimatedUnitsHigh='';x.bsrEstimatedRevenueLow='';x.bsrEstimatedRevenueMid='';x.bsrEstimatedRevenueHigh='';x.estimateModel='V19 insufficient data';x.estimateConfidence='None';x.estimateReason=!rank?'Missing Main Rank':'Missing Current Price';return x}let units;if(badge>0){units=Math.exp(2.637617154-0.01072047*Math.log(rank)-0.13099998*Math.log1p(reviews)+0.86298248*Math.log1p(badge)-0.19508055*Math.log(price)+0.1185108*Math.log(family));x.estimateModel='V19 child badge model';x.estimateConfidence='Medium';x.bsrEstimatedUnitsLow=Math.max(1,Math.round(units*.68));x.bsrEstimatedUnitsHigh=Math.round(units*1.45)}else{units=Math.exp(6.424250557-0.28777473*Math.log(rank)+0.23086161*Math.log1p(reviews)-0.42218872*Math.log(price)-0.70887953*Math.log(family));x.estimateModel='V19 child no-badge model';x.estimateConfidence='Low';x.bsrEstimatedUnitsLow=Math.max(1,Math.round(units*.40));x.bsrEstimatedUnitsHigh=Math.round(units*2.10)}x.bsrEstimatedUnitsMid=Math.max(1,Math.round(units));x.bsrEstimatedRevenueLow=Math.round(x.bsrEstimatedUnitsLow*price*100)/100;x.bsrEstimatedRevenueMid=Math.round(x.bsrEstimatedUnitsMid*price*100)/100;x.bsrEstimatedRevenueHigh=Math.round(x.bsrEstimatedUnitsHigh*price*100)/100;x.estimatedRevenue=x.bsrEstimatedRevenueMid;x.estimateReason='Validated V19 Mid; child-level estimate; weekly rank retained for analysis';return x}function applyFamilyEstimates(rows){let m=new Map;for(const x of rows){let k=String(x.asin||x.canonicalAsin||'').toUpperCase();if(!k||m.has(k))continue;m.set(k,estimate(x))}return [...m.values()]}
-$('run').onclick=async()=>{showLoader('Starting keyword search','Connecting to Amazon and validating the request...');try{let mode=document.querySelector('[name=lightMode]:checked')?.value||'keyword';$('s1').textContent='Preparing input...';if(mode==='keyword'){let keyword=$('aKeyword').value.trim();if(!keyword)throw new Error('Enter a keyword or ASIN.');let direct=itemsFromText(keyword,$('aMarket').value);if(direct.length){$('s1').textContent=`ASIN detected. Retrieving full details for ${direct.length} product(s)...`;let r=await enrichSafe(direct,{concurrency:settings.workers,delay:settings.delay,expandVariations:true});lightRaw=applyFamilyEstimates((r.items||[]).map(estimate));$('s1').textContent=r.error||`ASIN detail search completed: ${lightRaw.length} products.`}else{let r=await chrome.runtime.sendMessage({type:'SEARCH',s:{keyword,market:$('aMarket').value,pages:+$('aPages').value,delay:settings.delay}});lightRaw=r.items||[];$('s1').textContent=r.error||`Keyword search completed: ${lightRaw.length} products.`}}else{let items=mode==='file'?lightAsinFileRows:itemsFromText($('lightAsinPaste').value,$('aMarket').value);if(!items.length)throw new Error(mode==='file'?'Upload a template containing a valid ASIN or Amazon URL.':'Paste at least one valid ASIN or Amazon product URL.');$('s1').textContent=`Retrieving full product details for ${items.length} ASINs...`;let r=await enrichSafe(items,{concurrency:settings.workers,delay:settings.delay,expandVariations:true});lightRaw=applyFamilyEstimates((r.items||[]).map(estimate));$('s1').textContent=r.error||`ASIN detail search completed: ${lightRaw.length} products.`}lightView=filterRows(lightRaw,'a');render('t1',lightView);highlightBestSellers();hideLoader(true)}catch(e){$('s1').textContent=`Input error: ${e.message}`;hideLoader(false)}};$('apply1').onclick=()=>{lightView=filterRows(lightRaw,'a');render('t1',lightView)};function extractAsins(value){let text=String(value??'').toUpperCase(),found=new Set(),patterns=[/(?:\/DP\/|\/GP\/PRODUCT\/)([A-Z0-9]{10})(?:[/?]|$)/g,/(?:^|[\s,;|"'])([A-Z0-9]{10})(?=$|[\s,;|"'])/g];for(const re of patterns){let m;while((m=re.exec(text)))found.add(m[1])}return [...found]}function productItem(asin,market='ca'){let host=market==='com'?'www.amazon.com':'www.amazon.ca';return{asin,itemLink:`https://${host}/dp/${asin}`,status:'Queued'}}function itemsFromText(text,market='ca'){return [...new Set(extractAsins(text))].map(a=>productItem(a,market))}async function parseFile(f,market='ca'){if(!f)throw new Error('No file selected.');let buf=await f.arrayBuffer(),values=[];if(/\.(txt|csv|tsv)$/i.test(f.name))values=[new TextDecoder().decode(buf)];else{let wb=XLSX.read(buf,{type:'array'});for(const name of wb.SheetNames){let rows=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,defval:''});for(const row of rows)for(const cell of row)values.push(cell)}}let asins=[...new Set(values.flatMap(extractAsins))];return asins.map(a=>productItem(a,market))}function downloadAsinTemplate(){let ws=XLSX.utils.aoa_to_sheet([['ASIN','Product URL (optional)'],['B000000000',''],['','https://www.amazon.ca/dp/B000000001']]);ws['!cols']=[{wch:18},{wch:58}];let wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'ASIN Input');XLSX.writeFile(wb,'amazon-asin-input-template.xlsx')}let lightAsinFileRows=[];$('lightAsinFile').onchange=async e=>{try{lightAsinFileRows=await parseFile(e.target.files[0],$('aMarket').value);$('s1').textContent=`Loaded ${lightAsinFileRows.length} unique ASINs from ${e.target.files[0].name}.`}catch(err){lightAsinFileRows=[];$('s1').textContent=`File error: ${err.message}`}};$('asinFile').onchange=async e=>{try{asinFileRows=await parseFile(e.target.files[0],$('dMarket').value);$('s2').textContent=`Loaded ${asinFileRows.length} unique ASINs from ${e.target.files[0].name}.`}catch(err){asinFileRows=[];$('s2').textContent=`File error: ${err.message}`}};$('lightTemplate').onclick=downloadAsinTemplate;$('deepTemplate').onclick=downloadAsinTemplate;$('deepRun').onclick=async()=>{showLoader('Starting Deep Search','Finding products and preparing full detail extraction...');try{let mode=document.querySelector('[name=deepMode]:checked')?.value||'tab1',input=[];if(mode==='file')input=[...asinFileRows,...itemsFromText($('asinPaste').value,$('dMarket').value)];else{let keyword=$('dKeyword').value.trim();if(!keyword)throw new Error('Enter a keyword for Deep Search.');let sr=await chrome.runtime.sendMessage({type:'SEARCH',s:{keyword,market:$('dMarket').value,pages:+$('dPages').value,delay:settings.delay}});input=sr.items||[];if(sr.error)throw new Error(sr.error)}input=[...new Map(input.filter(x=>x.asin).map(x=>[x.asin,x])).values()];if(!input.length)throw new Error('No valid input products. Upload the template, paste ASINs/URLs, or enter a keyword.');$('s2').textContent=`Retrieving full details for ${input.length} products with ${settings.workers} workers...`;let r=await enrichSafe(input,{concurrency:settings.workers,delay:settings.delay,expandVariations:true});deepAll=applyFamilyEstimates((r.items||[]).map(estimate));deepView=filterRows(deepAll,'b');render('t2',deepView);$('s2').textContent=r.error||`Deep Search completed ${deepAll.length}; showing ${deepView.length}.`;highlightBestSellers();hideLoader(true)}catch(e){$('s2').textContent=`Input error: ${e.message}`;hideLoader(false)}};$('apply2').onclick=()=>{deepView=filterRows(deepAll,'b');render('t2',deepView)};
-const exportColumns=['name','asin','requestedAsin','canonicalAsin','canonicalUrl','parentAsin','isVariation','variationType','selectedVariation','variationCount','siblingAsins','familyKey','familySize','familyEstimatedUnits','childAllocationShare','packQuantity','estimateReason','brand','manufacturer','upc','ean','gtin','itemModelNumber','partNumber','variationNames','variationAttributesText','allProductDetails','seeMoreProductDetails','price','priceNumber','originalPrice','discountPercentage','review','reviewCount','amazonMonthlyBadge','amazonBadgeMinimumUnits','rank','rankCategory','subcategoryRank','rankedSubcategory','bsrEstimatedUnitsLow','bsrEstimatedUnitsMid','bsrEstimatedUnitsHigh','bsrEstimatedRevenueLow','bsrEstimatedRevenueMid','bsrEstimatedRevenueHigh','estimateModel','estimateConfidence','productDimensions','packageDimensions','itemWeight','countryOfOrigin','availability','buyBoxSeller','shipsFrom','hasAPlus','galleryImageCount','sponsored','itemLink','imageLink','status'];const exportLabels={name:'Product Title',asin:'ASIN',requestedAsin:'Requested ASIN',canonicalAsin:'Canonical ASIN',canonicalUrl:'Canonical URL',parentAsin:'Parent ASIN',isVariation:'Is Child Variation',variationType:'Variation Type',selectedVariation:'Selected Variation',variationCount:'Variation Count',siblingAsins:'Sibling ASINs',familyKey:'Family Key',familySize:'Family Size',familyEstimatedUnits:'Family Estimated Units',childAllocationShare:'Child Allocation Share',packQuantity:'Pack Quantity',estimateReason:'Estimate Reason',brand:'Brand',manufacturer:'Manufacturer',upc:'UPC',ean:'EAN',gtin:'GTIN',itemModelNumber:'Item Model Number',partNumber:'Part Number',variationNames:'Variation Names',variationAttributesText:'Expanded Variation Details',allProductDetails:'All Product Details',seeMoreProductDetails:'See More Product Details',price:'Current Price',priceNumber:'Price Number',originalPrice:'Original Price',discountPercentage:'Discount %',review:'Rating',reviewCount:'Review Count',amazonMonthlyBadge:'Amazon Monthly Badge',amazonBadgeMinimumUnits:'Badge Minimum Units',rank:'Main Rank',rankCategory:'Main Rank Category',subcategoryRank:'Subcategory Rank',rankedSubcategory:'Ranked Subcategory',bsrEstimatedUnitsLow:'Estimated Units Low',bsrEstimatedUnitsMid:'Estimated Units Mid',bsrEstimatedUnitsHigh:'Estimated Units High',bsrEstimatedRevenueLow:'Estimated Revenue Low',bsrEstimatedRevenueMid:'Estimated Revenue Mid',bsrEstimatedRevenueHigh:'Estimated Revenue High',estimateModel:'Estimate Model',estimateConfidence:'Estimate Confidence',productDimensions:'Product Dimensions',packageDimensions:'Package Dimensions',itemWeight:'Item Weight',countryOfOrigin:'Country of Origin',availability:'Availability',buyBoxSeller:'Buy Box Seller',shipsFrom:'Ships From',hasAPlus:'A+ Content',galleryImageCount:'Gallery Image Count',sponsored:'Sponsored',itemLink:'Product Link',imageLink:'Image Link',status:'Status'};function exportCell(x,k){if(['manufacturer','itemModelNumber','productDimensions','countryOfOrigin'].includes(k))return cleanLabeledDetail(x[k],exportLabels[k]);if(k==='allProductDetails'||k==='seeMoreProductDetails'){const v=x[k];if(!v)return'';if(typeof v==='object')return Object.entries(v).slice(0,80).map(([a,b])=>a+': '+String(b).replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim()).join(' | ').slice(0,12000);return String(v).replace(/<script[\s\S]*?<\/script>/gi,' ').replace(/<style[\s\S]*?<\/style>/gi,' ').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,12000)}return x[k]??''}function cleanRows(rows){return rows.map(x=>Object.fromEntries(exportColumns.map(k=>[exportLabels[k],exportCell(x,k)])))}function makeSheet(rows){let ws=XLSX.utils.json_to_sheet(cleanRows(rows));ws['!cols']=exportColumns.map(k=>({wch:Math.min(45,Math.max(12,(exportLabels[k]||k).length+3))}));ws['!autofilter']={ref:ws['!ref']||'A1:A1'};return ws}function exportCsv(rows,name){let csv=XLSX.utils.sheet_to_csv(makeSheet(rows)),u=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));chrome.downloads.download({url:u,filename:name,saveAs:true})}$('xlsx2').onclick=async()=>{const rows=cleanRows(deepAll);if(!rows.length)return alert('No Deep Search results to export.');await window.writeExactProductXlsx(rows,'amazon-product-details-clean.xlsx')};$('csv1').onclick=()=>exportCsv(lightView,'amazon-light-search-clean.csv');$('csv2').onclick=()=>exportCsv(deepView,'amazon-product-details-clean.csv');
-const headerAliases={'producttitle':'name','title':'name','asin':'asin','parentasin':'parentAsin','variationtype':'variationType','selectedvariation':'selectedVariation','variationcount':'variationCount','familysize':'familySize','familyestimatedunits':'familyEstimatedUnits','childallocationshare':'childAllocationShare','brand':'brand','manufacturer':'manufacturer','currentprice':'price','price':'price','pricenumber':'priceNumber','originalprice':'originalPrice','discount':'discountPercentage','discountpercent':'discountPercentage','rating':'review','reviewcount':'reviewCount','amazonmonthlybadge':'amazonMonthlyBadge','badgeminimumunits':'amazonBadgeMinimumUnits','mainrank':'rank','mainrankcategory':'rankCategory','subcategoryrank':'subcategoryRank','rankedsubcategory':'rankedSubcategory','estimatedunitslow':'bsrEstimatedUnitsLow','estimatedunitsmid':'bsrEstimatedUnitsMid','estimatedunitshigh':'bsrEstimatedUnitsHigh','estimatedrevenuemid':'bsrEstimatedRevenueMid','estimatemodel':'estimateModel','estimateconfidence':'estimateConfidence','productdimensions':'productDimensions','packagedimensions':'packageDimensions','itemweight':'itemWeight','countryoforigin':'countryOfOrigin','availability':'availability','buyboxseller':'buyBoxSeller','shipsfrom':'shipsFrom','apluscontent':'hasAPlus','galleryimagecount':'galleryImageCount','sponsored':'sponsored','productlink':'itemLink','imagelink':'imageLink','status':'status','actual30dayssales':'actual30DaysSales','actual30daysunit':'actual30DaysUnits'};function normalizeObject(o){let x={};for(const[k,v]of Object.entries(o)){let nk=String(k).toLowerCase().replace(/[^a-z0-9]/g,''),key=headerAliases[nk]||k.charAt(0).toLowerCase()+k.slice(1);if(x[key]==null||x[key]==='')x[key]=v}x.priceNumber=num(x.priceNumber)||num(x.price);let op=num(x.originalPrice);if(op!=null&&x.priceNumber!=null&&op<=x.priceNumber){x.originalPrice='';x.discountPercentage=''}x.rankNumber=num(x.rank);x.reviewCountNumber=num(x.reviewCount)||0;x.amazonBadgeMinimumUnits=num(x.amazonBadgeMinimumUnits)||0;return x}$('analysisFile').onchange=async e=>{let buf=await e.target.files[0].arrayBuffer(),wb=XLSX.read(buf,{type:'array'}),ws=wb.Sheets['Product Details']||wb.Sheets.ProductDetails||wb.Sheets[wb.SheetNames[0]];analysisFileRows=XLSX.utils.sheet_to_json(ws,{defval:''}).map(o=>estimate(normalizeObject(o)));applyFamilyEstimates(analysisFileRows);$('insights').textContent=`Loaded ${analysisFileRows.length} clean product rows from ${e.target.files[0].name}.`};
-function bars(title,obj,money=false){let a=Object.entries(obj).sort((x,y)=>y[1]-x[1]).slice(0,10),m=a[0]?.[1]||1;return`<div class="chart"><h3>${title}</h3>${a.map(([k,v])=>`<div class="barrow"><span>${esc(k)}</span><div class="track"><i style="width:${v/m*100}%"></i></div><b>${money?'$'+Math.round(v).toLocaleString():v}</b></div>`).join('')}</div>`}function donut(title,obj,money=false){let a=Object.entries(obj).filter(x=>x[1]>0),tot=a.reduce((s,x)=>s+x[1],0)||1,d=0,c=['#176bd5','#22b8cf','#37b24d','#ff922b','#e64980','#845ef7','#15aabf'];return`<div class="chart"><h3>${title}</h3><div class="donut" style="background:conic-gradient(${a.map((x,i)=>{let s=d;d+=x[1]/tot*360;return`${c[i%c.length]} ${s}deg ${d}deg`}).join(',')})"></div><div class="legend">${a.map((x,i)=>`<small><i style="background:${c[i%c.length]}"></i>${esc(x[0])}: ${money?'$'+Math.round(x[1]).toLocaleString():Math.round(x[1])} (${(x[1]/tot*100).toFixed(1)}%)</small>`).join('')}</div></div>`}
-function opportunityChart(rows){let a=[...rows].map(x=>({...x,opportunityScore:(+x.bsrEstimatedUnitsMid||0)/(num(x.reviewCount)||1)})).sort((a,b)=>b.opportunityScore-a.opportunityScore).slice(0,10),m=a[0]?.opportunityScore||1;return`<div class="chart"><h3>Market Opportunity (High Demand, Low Reviews)</h3>${a.map(x=>`<div class="barrow"><span><a class="asinLink" href="${esc(x.itemLink||'#')}" target="_blank" rel="noopener">${esc(x.asin||'Unknown ASIN')}</a></span><div class="track"><i style="width:${x.opportunityScore/m*100}%"></i></div><b>${Math.round(x.opportunityScore*100)/100}</b></div>`).join('')}</div>`}$('analyze').onclick=()=>{analysisRows=filterRows($('marketSource').value==='tab2'?(deepView.length?deepView:deepAll):analysisFileRows,'c');if(!analysisRows.length){$('kpis').innerHTML='';$('charts').innerHTML='';$('insights').textContent='No usable product rows. Run Deep Search or upload a Product Details workbook, then build the analysis.';return}let brands={},values={},cats={},unitBands={'100–500':0,'500–1K':0,'1K–2K':0,'2K–5K':0,'5K+':0},ratings={'5 Stars':0,'4 Stars':0,'3 Stars':0,'2 Stars':0,'1 Star':0},prices={'Under $25':0,'$25–$50':0,'$50–$100':0,'$100–$200':0,'$200+':0},rankValue={'Top 100':0,'101–500':0,'501–1K':0,'1K–5K':0,'5K+':0};for(const x of analysisRows){let b=x.brand||'Unknown';brands[b]=(brands[b]||0)+1;values[b]=(values[b]||0)+(+x.bsrEstimatedRevenueMid||0);let c=x.rankCategory||'Unknown';cats[c]=(cats[c]||0)+1;let u=+x.bsrEstimatedUnitsMid||0;unitBands[u<500?'100–500':u<1000?'500–1K':u<2000?'1K–2K':u<5000?'2K–5K':'5K+']++;let r=Math.round(parseFloat(x.review)||0);ratings[(r||1)+' Stars']++;let p=+x.priceNumber||0;prices[p<25?'Under $25':p<50?'$25–$50':p<100?'$50–$100':p<200?'$100–$200':'$200+']++;let rk=num(x.rank)||999999;rankValue[rk<=100?'Top 100':rk<=500?'101–500':rk<=1000?'501–1K':rk<=5000?'1K–5K':'5K+']+=(+x.bsrEstimatedRevenueMid||0)}let sortedBrandValues=Object.entries(values).sort((a,b)=>b[1]-a[1]),brandShare=Object.fromEntries(sortedBrandValues.slice(0,6)),otherBrandValue=sortedBrandValues.slice(6).reduce((sum,x)=>sum+x[1],0);if(otherBrandValue>0)brandShare.Other=otherBrandValue;let units=analysisRows.reduce((s,x)=>s+(+x.bsrEstimatedUnitsMid||0),0),value=analysisRows.reduce((s,x)=>s+(+x.bsrEstimatedRevenueMid||0),0),avg=analysisRows.reduce((s,x)=>s+(+x.priceNumber||0),0)/(analysisRows.length||1),reviews=analysisRows.reduce((s,x)=>s+(num(x.reviewCount)||0),0)/(analysisRows.length||1);$('kpis').innerHTML=[['📦 Total Products',analysisRows.length],['🔗 Avg. Price','$'+avg.toFixed(2)],['🏦 Est. Market Value','$'+Math.round(value).toLocaleString()],['📊 Monthly Units',Math.round(units).toLocaleString()+'+'],['🧾 Avg. Reviews',Math.round(reviews).toLocaleString()],['⚙ Sponsored %',(analysisRows.filter(x=>x.sponsored).length/(analysisRows.length||1)*100).toFixed(1)+'%'],['📚 Unique Brands',Object.keys(brands).length],['📈 View Full Report','→']].map(x=>`<div class="kpi">${x[0]}<strong>${x[1]}</strong></div>`).join('');$('charts').innerHTML=donut('Estimated Market Value by Price Range',prices)+donut('Brand Market Share by Estimated Revenue',brandShare,true)+bars('Top 10 Brands by Estimated Market Value',values,true)+donut('Monthly Units Distribution',unitBands)+bars('Top 10 Categories by Product Count',cats)+bars('Rating Distribution',ratings)+opportunityChart(analysisRows)+bars('Estimated Market Value by Main Rank Band',rankValue,true)+`<div class="chart dashExport"><h3>Export & Report</h3><button id="dashAll" class="green">Export All Results (CSV)</button><button id="dashFiltered" class="red">Export Filtered Results (CSV)</button><button id="dashOpportunity" class="blue">Export Opportunity Table (CSV)</button><button id="dashPdf" class="purple">Export Market Analysis (PDF)</button></div>`;const opportunity=[...analysisRows].sort((a,b)=>(b.bsrEstimatedUnitsMid/(num(b.reviewCount)||1))-(a.bsrEstimatedUnitsMid/(num(a.reviewCount)||1))).slice(0,50);$('dashAll').onclick=()=>exportCsv($('marketSource').value==='tab2'?deepAll:analysisFileRows,'amazon-all-results.csv');$('dashFiltered').onclick=()=>exportCsv(analysisRows,'amazon-filtered-analysis.csv');$('dashOpportunity').onclick=()=>exportCsv(opportunity,'amazon-opportunity-results.csv');$('dashPdf').onclick=()=>window.print();$('insights').textContent=`Analysis includes ${analysisRows.length} products from ${$('marketSource').selectedOptions[0].text}. Every KPI and chart is calculated from this selected dataset.`;render('t3',analysisRows)};
-$('toggleReport').onclick=()=>$('t3').classList.toggle('hiddenReport');$('exportAll').onclick=()=>exportCsv($('marketSource').value==='tab2'?deepAll:analysisFileRows,'amazon-all-results.csv');$('exportFiltered').onclick=()=>exportCsv(analysisRows,'amazon-filtered-analysis.csv');$('exportOpportunity').onclick=()=>exportCsv([...analysisRows].sort((a,b)=>(b.bsrEstimatedUnitsMid/(num(b.reviewCount)||1))-(a.bsrEstimatedUnitsMid/(num(a.reviewCount)||1))).slice(0,50),'amazon-opportunity-results.csv');$('pdf').onclick=()=>window.print();document.querySelectorAll('.stop').forEach(b=>b.onclick=()=>chrome.runtime.sendMessage({type:'STOP'}));function highlightBestSellers(){document.querySelectorAll('.table table,.myTable table').forEach(table=>{let heads=[...table.querySelectorAll('thead th')].map(x=>x.textContent.toLowerCase()),idx=heads.findIndex(x=>x.includes('sub rank'));if(idx<0)return;table.querySelectorAll('tbody tr').forEach(tr=>{let c=tr.cells[idx],v=Number((c?.textContent||'').replace(/[^0-9]/g,''));if(v===1){tr.classList.add('bestSellerRow');if(!c.querySelector('.bestSellerBadge'))c.insertAdjacentHTML('beforeend','<span class="bestSellerBadge">★ #1 BEST SELLER</span>')}})})}chrome.runtime.onMessage.addListener(m=>{if(m.type==='SEARCH_STAGE')updateLoader({stage:m.stage||1,title:m.title,message:m.message,page:m.page,total:m.total,count:m.count,current:m.message});if(m.type==='SEARCH_PROGRESS'){$('s1').textContent=`Amazon search page ${m.page}/${m.total}; ${m.count} products found`;updateLoader({stage:2,title:'Collecting products',message:`Search page ${m.page} completed`,page:m.page,total:m.total,count:m.count,current:`Found ${m.count} unique products`})}if(m.type==='DETAIL_STAGE')updateLoader({stage:3,title:'Expanding product details',message:'Opening Product Information, See more, and variation details',current:`Current ASIN: ${m.asin}`});if(m.type==='PROGRESS'){$('s2').textContent=`Deep Search ${m.done}/${m.total}`;updateLoader({stage:4,title:'Building variation families',message:'Extracting every discovered child ASIN and expanded attribute',done:m.done,total:m.total,count:m.unique,current:`${m.done} of ${m.total} products completed`,percent:42+(m.done/Math.max(1,m.total))*56})}});new MutationObserver(()=>highlightBestSellers()).observe(document.body,{childList:true,subtree:true});const DEFAULT_SETTINGS={market:'ca',workers:3,delay:2,pages:3};let settings={...DEFAULT_SETTINGS};function applySettings(){for(const id of ['aMarket','dMarket'])if($(id))$(id).value=settings.market;if($('bCon'))$('bCon').value=String(settings.workers);if($('bDelay'))$('bDelay').value=String(settings.delay);for(const id of ['aPages','dPages'])if($(id))$(id).value=String(settings.pages);$('setMarket').value=settings.market;$('setWorkers').value=settings.workers;$('setDelay').value=settings.delay;$('setPages').value=settings.pages}chrome.storage.local.get('researchSettings',o=>{settings={...DEFAULT_SETTINGS,...(o.researchSettings||{})};applySettings()});$('settingsBtn').onclick=()=>{$('settingsModal').classList.remove('hidden');applySettings()};$('closeSettings').onclick=()=>$('settingsModal').classList.add('hidden');$('settingsModal').onclick=e=>{if(e.target===$('settingsModal'))$('settingsModal').classList.add('hidden')};$('saveSettings').onclick=()=>{settings={market:$('setMarket').value,workers:Math.max(1,Math.min(10,+$('setWorkers').value||3)),delay:Math.max(1,Math.min(30,+$('setDelay').value||4)),pages:Math.max(0,Math.floor(Number($('setPages').value)||0))};chrome.storage.local.set({researchSettings:settings},()=>{$('settingsStatus').textContent='Settings saved locally.';applySettings()})};$('bCon').onchange=()=>{settings.workers=Math.max(1,Math.min(10,+$('bCon').value||3))};$('bDelay').onchange=()=>{settings.delay=Math.max(1,Math.min(30,+$('bDelay').value||4))};$('aMarket').onchange=()=>settings.market=$('aMarket').value;$('dMarket').onchange=()=>settings.market=$('dMarket').value;$('resetSettings').onclick=()=>{settings={...DEFAULT_SETTINGS};chrome.storage.local.set({researchSettings:settings},()=>{$('settingsStatus').textContent='Defaults restored.';applySettings()})};$('helpBtn').onclick=()=>alert('Tab 1: use Keyword, pasted ASINs/product URLs, or upload the template. Tab 2: use Tab 1 results, upload/paste ASINs, or search by keyword. Recommended: 2-3 workers and 3-5 seconds delay.');$('savedDataBtn').onclick=()=>{let count=(lightRaw?.length||0)+(deepAll?.length||0);alert(`${count} products are held in this dashboard session. Use an export to save a permanent copy.`)};document.querySelectorAll('.proTabs button[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.add('hidden'));document.querySelectorAll('.proTabs button').forEach(x=>x.classList.remove('active'));$(b.dataset.tab).classList.remove('hidden');b.classList.add('active')});
+// --------------------------------------------------------------------------
+// Service worker bridge
+// --------------------------------------------------------------------------
 
-window.getV19DeepSearchRows=()=>deepAll.map(x=>({...x}));
+/**
+ * Every network call in this file goes through here. Nothing else may fetch.
+ *
+ * Failures are routed to window.amrHandleError, which decides whether the
+ * session is over (back to the gate) or just this action failed (a toast), and
+ * hands back a message suitable for an inline status line.
+ */
+function send(message) {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage(message, (response) => {
+      if (chrome.runtime.lastError) {
+        resolve({
+          ok: false,
+          error: { code: "network_error", message: chrome.runtime.lastError.message },
+        });
+        return;
+      }
+      resolve(response);
+    });
+  });
+}
+
+/** Throws on failure so callers can use one try/catch around a whole flow. */
+async function call(message) {
+  const response = await send(message);
+  if (response?.ok) {
+    if (response.quota) window.amrUpdateQuota?.(response.quota);
+    return response;
+  }
+  const text = window.amrHandleError?.(response?.error) ??
+    (response?.error?.message ?? "Request failed.");
+  const err = new Error(text);
+  err.code = response?.error?.code;
+  throw err;
+}
+
+/** Refuses to start work the gate has not cleared. */
+function requireSession() {
+  if (!window.amrSession?.ready) {
+    throw new Error("Sign in to run a search.");
+  }
+}
+
+// --------------------------------------------------------------------------
+// DOM helpers
+//
+// The V29 build used a Proxy that silently absorbed writes to missing
+// elements. That is what hid the crash in market-v21.js for so long, so this
+// version keeps the null-safety but complains in the console.
+// --------------------------------------------------------------------------
+
+const NOOP_CLASSLIST = { add() {}, remove() {}, toggle() { return false; } };
+
+const NOOP_ELEMENT = new Proxy(
+  {
+    value: "",
+    files: [],
+    style: {},
+    dataset: {},
+    classList: NOOP_CLASSLIST,
+    selectedOptions: [{ text: "" }],
+    querySelector: () => NOOP_ELEMENT,
+    querySelectorAll: () => [],
+    prepend() {},
+    insertAdjacentElement() {},
+    insertAdjacentHTML() {},
+    addEventListener() {},
+  },
+  {
+    get: (target, key) => (key in target ? target[key] : ""),
+    set: (target, key, value) => ((target[key] = value), true),
+  },
+);
+
+const $ = (id) => {
+  const el = document.getElementById(id);
+  if (!el && !$.warned.has(id)) {
+    $.warned.add(id);
+    console.warn(`[dashboard] missing element #${id}`);
+  }
+  return el || NOOP_ELEMENT;
+};
+$.warned = new Set();
+
+const esc = (value) =>
+  String(value ?? "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  }[c]));
+
+const num = (value) => {
+  const m = String(value ?? "").replace(/,/g, "").match(/[\d.]+/);
+  return m ? +m[0] : null;
+};
+
+const money = (v) => "$" + Math.round(Number(v) || 0).toLocaleString();
+
+// --------------------------------------------------------------------------
+// Loader
+// --------------------------------------------------------------------------
+
+function inlineLoaderHost() {
+  const active = document.querySelector(".tab:not(.hidden)") || $("light");
+  const loader = $("searchLoader");
+  loader.classList.add("inlineSearchLoader");
+  loader.classList.remove("hidden");
+  const status = active.querySelector?.(".status");
+  if (status) status.insertAdjacentElement("afterend", loader);
+  else active.prepend(loader);
+  return loader;
+}
+
+function showLoader(title = "Starting search", message = "Preparing Amazon...") {
+  inlineLoaderHost();
+  $("loaderTitle").textContent = title;
+  $("loaderMessage").textContent = message;
+  $("loaderBar").style.width = "4%";
+  $("loaderStep").textContent = "1";
+  $("loaderPage").textContent = "0 / 0";
+  $("loaderProducts").textContent = "0";
+  $("loaderDone").textContent = "0 / 0";
+  $("loaderCurrent").textContent = message;
+}
+
+function updateLoader(o = {}) {
+  if (o.title) $("loaderTitle").textContent = o.title;
+  if (o.message) $("loaderMessage").textContent = o.message;
+  if (o.stage) $("loaderStep").textContent = o.stage;
+  if (o.page != null) $("loaderPage").textContent = `${o.page} / ${o.total || o.page}`;
+  if (o.count != null) $("loaderProducts").textContent = o.count;
+  if (o.done != null) $("loaderDone").textContent = `${o.done} / ${o.total || o.done}`;
+  if (o.current) $("loaderCurrent").textContent = o.current;
+
+  const pct = o.percent ??
+    (o.done != null && o.total
+      ? (o.done / o.total) * 100
+      : o.page != null && o.total
+      ? (o.page / o.total) * 42
+      : 8);
+  $("loaderBar").style.width = Math.max(4, Math.min(100, pct)) + "%";
+}
+
+function hideLoader(success = true) {
+  updateLoader({
+    title: success ? "Search complete" : "Search stopped",
+    message: success ? "Results are ready." : "The operation ended.",
+    percent: 100,
+  });
+  setTimeout(() => $("searchLoader").classList.add("hidden"), success ? 900 : 250);
+}
+
+$("loaderStop").onclick = () => {
+  send({ type: "STOP" });
+  hideLoader(false);
+};
+
+// --------------------------------------------------------------------------
+// State
+// --------------------------------------------------------------------------
+
+let lightRaw = [];
+let lightView = [];
+let deepAll = [];
+let deepView = [];
+let analysisFileRows = [];
+let analysisRows = [];
+let asinFileRows = [];
+let lightAsinFileRows = [];
+
+/** Server-computed analysis payload. Never rebuilt locally. */
+let serverAnalysis = null;
+
+// --------------------------------------------------------------------------
+// Filter and table controls
+// --------------------------------------------------------------------------
+
+const input = (p, id, label, type = "text", extra = "") =>
+  `<div><label>${label}</label><input id="${p}${id}" type="${type}" ${extra}></div>`;
+
+const select = (p, id, label, options) =>
+  `<div><label>${label}</label><select id="${p}${id}">${
+    options.map((x) => `<option value="${x[0]}">${x[1]}</option>`).join("")
+  }</select></div>`;
+
+function filters(p) {
+  return input(p, "Min", "Price Min", "number", 'step=".01"') +
+    input(p, "Max", "Price Max", "number", 'step=".01"') +
+    input(p, "In", "Title Contains") +
+    input(p, "Out", "Title Does Not Contain") +
+    input(p, "Brand", "Brand") +
+    select(p, "Sponsored", "Sponsored", [["exclude", "No"], ["all", "All"], ["only", "Only sponsored"]]) +
+    select(p, "Dedupe", "Remove Duplicates", [["yes", "Yes"], ["no", "No"]]) +
+    select(p, "Sort", "Sort By", [
+      ["name", "Title"],
+      ["priceNumber", "Price"],
+      ["rankNumber", "Main Rank"],
+      ["bsrEstimatedUnitsMid", "Monthly Units"],
+      ["reviewCountNumber", "Reviews"],
+      ["opportunityScore", "Opportunity Score"],
+    ]) +
+    select(p, "Dir", "Direction", [["asc", "Low to high / A-Z"], ["desc", "High to low / Z-A"]]);
+}
+
+$("f1").innerHTML =
+  select("a", "Market", "Marketplace", [["ca", "Amazon.ca"], ["com", "Amazon.com"]]) +
+  input("a", "Keyword", "Keyword / Search Term") +
+  input("a", "Pages", "Pages (0 = all available)", "number", 'value="3" min="0" step="1"') +
+  filters("a");
+
+$("f2").innerHTML = filters("b") +
+  select("b", "Con", "Parallel Background Workers",
+    [["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"]]) +
+  input("b", "Delay", "Delay Seconds", "number", 'value="4"');
+
+$("f3").innerHTML = filters("c");
+
+$("deepInputs").innerHTML =
+  input("d", "Keyword", "Keyword for Deep Search") +
+  select("d", "Market", "Marketplace", [["ca", "Amazon.ca"], ["com", "Amazon.com"]]) +
+  input("d", "Pages", "Pages (0 = all available)", "number", 'value="3" min="0" step="1"') +
+  `<div><label>Upload ASIN file</label><input id="asinFile" type="file" accept=".txt,.csv,.xlsx"></div>
+   <div style="grid-column:span 2"><label>Or paste ASINs</label>
+   <textarea id="asinPaste" placeholder="One ASIN per line, or comma-separated"></textarea></div>`;
+
+const cols = [
+  "imageLink", "name", "asin", "parentAsin", "variationCount", "packQuantity",
+  "price", "review", "reviewCount", "amazonBadgeMinimumUnits",
+  "bsrEstimatedUnitsMid", "bsrEstimatedRevenueMid", "opportunityScore",
+  "estimateConfidence", "rank", "rankCategory", "subcategoryRank", "rankedSubcategory",
+  "brand", "manufacturer", "productDimensions", "itemWeight", "countryOfOrigin",
+  "availability", "buyBoxSeller", "shipsFrom", "sponsored", "itemLink", "status",
+];
+
+const labels = {
+  imageLink: "Image", name: "Title", asin: "ASIN", parentAsin: "Parent ASIN",
+  variationCount: "Family Size", packQuantity: "Pack Qty", price: "Price",
+  review: "Rating", reviewCount: "Reviews", amazonBadgeMinimumUnits: "Badge Units",
+  bsrEstimatedUnitsMid: "Estimated Monthly Units",
+  bsrEstimatedRevenueMid: "Estimated Sales Value",
+  opportunityScore: "Opportunity Score", estimateConfidence: "Confidence",
+  rank: "Main Rank", rankCategory: "Main Category", subcategoryRank: "Sub Rank",
+  rankedSubcategory: "Subcategory", brand: "Brand", manufacturer: "Manufacturer",
+  productDimensions: "Product Size", itemWeight: "Weight", countryOfOrigin: "Origin",
+  availability: "Availability", buyBoxSeller: "Buy Box Seller", shipsFrom: "Ships From",
+  sponsored: "Sponsored", itemLink: "Product Link", status: "Status",
+};
+
+const terms = (id) =>
+  $(id).value.toLowerCase().split(",").map((x) => x.trim()).filter(Boolean);
+
+function filterRows(rows, p) {
+  const inc = terms(p + "In");
+  const out = terms(p + "Out");
+  const brands = terms(p + "Brand");
+  const min = $(p + "Min").value === "" ? null : +$(p + "Min").value;
+  const max = $(p + "Max").value === "" ? null : +$(p + "Max").value;
+  const sponsored = $(p + "Sponsored").value;
+  const seen = new Set();
+
+  const filtered = rows.filter((x) => {
+    const title = (x.name || "").toLowerCase();
+    const brand = (x.brand || "").toLowerCase();
+    const duplicate = seen.has(x.asin);
+    seen.add(x.asin);
+
+    return ($(p + "Dedupe").value === "no" || !duplicate) &&
+      (sponsored === "all" || (sponsored === "only" ? x.sponsored : !x.sponsored)) &&
+      (min == null || x.priceNumber >= min) &&
+      (max == null || x.priceNumber <= max) &&
+      (!inc.length || inc.some((w) => title.includes(w))) &&
+      !out.some((w) => title.includes(w)) &&
+      (!brands.length || brands.some((w) => brand.includes(w)));
+  });
+
+  const key = $(p + "Sort").value;
+  const dir = $(p + "Dir").value === "desc" ? -1 : 1;
+
+  return filtered.sort((a, b) => {
+    const av = a[key] ?? "";
+    const bv = b[key] ?? "";
+    const cmp = typeof av === "number" && typeof bv === "number"
+      ? av - bv
+      : String(av).localeCompare(String(bv), undefined, { numeric: true });
+    return cmp * dir;
+  });
+}
+
+const headerState = {};
+
+function applyHeader(rows, id) {
+  let out = rows;
+  for (const [key, f] of Object.entries(headerState[id] || {})) {
+    if (f.op === "asc" || f.op === "desc") {
+      const dir = f.op === "desc" ? -1 : 1;
+      out = [...out].sort((a, b) =>
+        String(a[key] ?? "").localeCompare(String(b[key] ?? ""), undefined, { numeric: true }) * dir
+      );
+    } else {
+      out = out.filter((x) => {
+        const s = String(x[key] ?? "").toLowerCase();
+        const w = String(f.v).toLowerCase();
+        const n = num(x[key]);
+        const q = num(f.v);
+        return f.op === "contains" ? s.includes(w)
+          : f.op === "not" ? !s.includes(w)
+          : f.op === "lt" ? n < q
+          : f.op === "gt" ? n > q
+          : s === w;
+      });
+    }
+  }
+  return out;
+}
+
+function render(id, rows) {
+  const view = applyHeader([...rows], id);
+
+  const menu = (k) =>
+    `<select class="hf" data-k="${k}"><option value="">Filter</option>` +
+    `<option value="asc">Low to High</option><option value="desc">High to Low</option>` +
+    `<option value="lt">Less than</option><option value="gt">Greater than</option>` +
+    `<option value="contains">Contains</option><option value="not">Does not contain</option>` +
+    `<option value="clear">Clear</option></select>`;
+
+  let html = "<table><thead><tr>" +
+    cols.map((k) => `<th>${labels[k]}<br>${menu(k)}</th>`).join("") +
+    "</tr></thead><tbody>";
+
+  for (const row of view) {
+    html += "<tr>" + cols.map((k) =>
+      k === "imageLink" && row[k]
+        ? `<td><img class="thumb" src="${esc(row[k])}"></td>`
+        : `<td>${esc(typeof row[k] === "boolean" ? (row[k] ? "Yes" : "No") : row[k])}</td>`
+    ).join("") + "</tr>";
+  }
+
+  $(id).innerHTML = html + "</tbody></table>";
+
+  document.querySelectorAll(`#${id} .hf`).forEach((sel) => {
+    sel.onchange = () => {
+      const op = sel.value;
+      const key = sel.dataset.k;
+      headerState[id] ??= {};
+
+      if (op === "clear" || !op) {
+        delete headerState[id][key];
+      } else if (op === "asc" || op === "desc") {
+        headerState[id][key] = { op };
+      } else {
+        const v = prompt(`${labels[key]} value`);
+        if (v !== null) headerState[id][key] = { op, v };
+      }
+      render(id, rows);
+    };
+  });
+}
+
+// --------------------------------------------------------------------------
+// ASIN input parsing
+// --------------------------------------------------------------------------
+
+function extractAsins(value) {
+  const text = String(value ?? "").toUpperCase();
+  const found = new Set();
+  const patterns = [
+    /(?:\/DP\/|\/GP\/PRODUCT\/)([A-Z0-9]{10})(?:[/?]|$)/g,
+    /(?:^|[\s,;|"'])([A-Z0-9]{10})(?=$|[\s,;|"'])/g,
+  ];
+  for (const re of patterns) {
+    let m;
+    while ((m = re.exec(text))) found.add(m[1]);
+  }
+  return [...found];
+}
+
+const productItem = (asin, market = "ca") => ({
+  asin,
+  market,
+  itemLink: `https://${market === "com" ? "www.amazon.com" : "www.amazon.ca"}/dp/${asin}`,
+  status: "Queued",
+});
+
+const itemsFromText = (text, market = "ca") =>
+  [...new Set(extractAsins(text))].map((a) => productItem(a, market));
+
+/**
+ * Reads an uploaded ASIN list.
+ *
+ * Uses the bundled ProductWorkbook reader. The V29 build called XLSX.read here
+ * against a library that was never loaded.
+ */
+async function parseFile(file, market = "ca") {
+  if (!file) throw new Error("No file selected.");
+
+  let values = [];
+  if (/\.(txt)$/i.test(file.name)) {
+    values = [await file.text()];
+  } else {
+    const rows = await ProductWorkbook.read(file);
+    for (const row of rows) values.push(...Object.values(row));
+  }
+
+  const asins = [...new Set(values.flatMap(extractAsins))];
+  return asins.map((a) => productItem(a, market));
+}
+
+function downloadAsinTemplate() {
+  window.writeExactProductXlsx(
+    [
+      { ASIN: "B000000000", "Product URL (optional)": "" },
+      { ASIN: "", "Product URL (optional)": "https://www.amazon.ca/dp/B000000001" },
+    ],
+    "amazon-asin-input-template.xlsx",
+  );
+}
+
+// --------------------------------------------------------------------------
+// Export
+// --------------------------------------------------------------------------
+
+const exportColumns = [
+  "name", "asin", "parentAsin", "variationCount", "packQuantity", "brand", "manufacturer",
+  "price", "priceNumber", "review", "reviewCount", "amazonBadgeMinimumUnits",
+  "rank", "rankCategory", "subcategoryRank", "rankedSubcategory",
+  "bsrEstimatedUnitsLow", "bsrEstimatedUnitsMid", "bsrEstimatedUnitsHigh",
+  "bsrEstimatedRevenueLow", "bsrEstimatedRevenueMid", "bsrEstimatedRevenueHigh",
+  "opportunityScore", "estimateModel", "estimateConfidence", "estimateReason",
+  "productDimensions", "packageDimensions", "itemWeight", "countryOfOrigin",
+  "availability", "buyBoxSeller", "shipsFrom", "sponsored", "itemLink", "imageLink", "status",
+];
+
+const exportLabels = {
+  name: "Product Title", asin: "ASIN", parentAsin: "Parent ASIN",
+  variationCount: "Variation Count", packQuantity: "Pack Quantity", brand: "Brand",
+  manufacturer: "Manufacturer", price: "Current Price", priceNumber: "Price Number",
+  review: "Rating", reviewCount: "Review Count",
+  amazonBadgeMinimumUnits: "Badge Minimum Units", rank: "Main Rank",
+  rankCategory: "Main Rank Category", subcategoryRank: "Subcategory Rank",
+  rankedSubcategory: "Ranked Subcategory",
+  bsrEstimatedUnitsLow: "Estimated Units Low", bsrEstimatedUnitsMid: "Estimated Units Mid",
+  bsrEstimatedUnitsHigh: "Estimated Units High",
+  bsrEstimatedRevenueLow: "Estimated Revenue Low",
+  bsrEstimatedRevenueMid: "Estimated Revenue Mid",
+  bsrEstimatedRevenueHigh: "Estimated Revenue High",
+  opportunityScore: "Opportunity Score", estimateModel: "Estimate Model",
+  estimateConfidence: "Estimate Confidence", estimateReason: "Estimate Reason",
+  productDimensions: "Product Dimensions", packageDimensions: "Package Dimensions",
+  itemWeight: "Item Weight", countryOfOrigin: "Country of Origin",
+  availability: "Availability", buyBoxSeller: "Buy Box Seller", shipsFrom: "Ships From",
+  sponsored: "Sponsored", itemLink: "Product Link", imageLink: "Image Link", status: "Status",
+};
+
+/** Strips a repeated field label out of a scraped detail value ("Brand: Acme" -> "Acme"). */
+function cleanLabeledDetail(value, label = "") {
+  const text = String(value ?? "")
+    .replace(/[‎‏‪-‮⁦-⁩­]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!text) return "";
+
+  const names = [label, "Manufacturer", "Item Model Number", "Model Number",
+    "Product Dimensions", "Item Dimensions", "Country of Origin"]
+    .filter(Boolean)
+    .map((x) => String(x).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+
+  return text.replace(new RegExp("^(?:" + names.join("|") + ")\\s*[:：-]\\s*", "i"), "").trim();
+}
+
+function exportCell(row, key) {
+  if (["manufacturer", "productDimensions", "countryOfOrigin"].includes(key)) {
+    return cleanLabeledDetail(row[key], exportLabels[key]);
+  }
+  return row[key] ?? "";
+}
+
+const cleanRows = (rows) =>
+  rows.map((row) =>
+    Object.fromEntries(exportColumns.map((k) => [exportLabels[k], exportCell(row, k)]))
+  );
+
+/**
+ * CSV writer.
+ *
+ * Replaces XLSX.utils.sheet_to_csv, which never existed at runtime. Leading
+ * =, +, - and @ are prefixed with a quote so a scraped product title cannot
+ * become a formula when the file is opened in Excel.
+ */
+function toCsv(rows) {
+  if (!rows.length) return "";
+  const headers = Object.keys(rows[0]);
+
+  const cell = (value) => {
+    let text = String(value ?? "");
+    if (/^[=+\-@]/.test(text)) text = "'" + text;
+    return '"' + text.replace(/"/g, '""') + '"';
+  };
+
+  return [
+    headers.map(cell).join(","),
+    ...rows.map((row) => headers.map((h) => cell(row[h])).join(",")),
+  ].join("\r\n");
+}
+
+function exportCsv(rows, filename) {
+  if (!rows.length) return alert("Nothing to export yet.");
+
+  const blob = new Blob(["﻿" + toCsv(cleanRows(rows))], {
+    type: "text/csv;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+
+  chrome.downloads.download({ url, filename, saveAs: true }, () => {
+    setTimeout(() => URL.revokeObjectURL(url), 30_000);
+  });
+}
+
+// --------------------------------------------------------------------------
+// Tab 1: keyword and ASIN search
+// --------------------------------------------------------------------------
+
+$("run").onclick = async () => {
+  showLoader("Starting keyword search", "Checking your access and connecting to Amazon...");
+  try {
+    requireSession();
+
+    const mode = document.querySelector("[name=lightMode]:checked")?.value || "keyword";
+    $("s1").textContent = "Preparing input...";
+
+    if (mode === "keyword") {
+      const keyword = $("aKeyword").value.trim();
+      if (!keyword) throw new Error("Enter a keyword or ASIN.");
+
+      const direct = itemsFromText(keyword, $("aMarket").value);
+
+      if (direct.length) {
+        $("s1").textContent = `ASIN detected. Retrieving details for ${direct.length} product(s)...`;
+        const result = await call({
+          type: "ENRICH",
+          items: direct,
+          settings: { concurrency: settings.workers, delay: settings.delay },
+          query: keyword,
+        });
+        lightRaw = result.items;
+        $("s1").textContent = `ASIN detail search completed: ${lightRaw.length} products.`;
+      } else {
+        const result = await call({
+          type: "SEARCH",
+          settings: {
+            keyword,
+            market: $("aMarket").value,
+            pages: +$("aPages").value,
+            delay: settings.delay,
+          },
+        });
+        lightRaw = result.items;
+        $("s1").textContent = `Keyword search completed: ${lightRaw.length} products.`;
+      }
+    } else {
+      const items = mode === "file"
+        ? lightAsinFileRows
+        : itemsFromText($("lightAsinPaste").value, $("aMarket").value);
+
+      if (!items.length) {
+        throw new Error(
+          mode === "file"
+            ? "Upload a file containing a valid ASIN or Amazon URL."
+            : "Paste at least one valid ASIN or Amazon product URL.",
+        );
+      }
+
+      $("s1").textContent = `Retrieving details for ${items.length} ASINs...`;
+      const result = await call({
+        type: "ENRICH",
+        items,
+        settings: { concurrency: settings.workers, delay: settings.delay },
+      });
+      lightRaw = result.items;
+      $("s1").textContent = `ASIN detail search completed: ${lightRaw.length} products.`;
+    }
+
+    lightView = filterRows(lightRaw, "a");
+    render("t1", lightView);
+    highlightBestSellers();
+    hideLoader(true);
+  } catch (err) {
+    $("s1").textContent = err.message;
+    hideLoader(false);
+  }
+};
+
+$("apply1").onclick = () => {
+  lightView = filterRows(lightRaw, "a");
+  render("t1", lightView);
+};
+
+$("lightAsinFile").onchange = async (event) => {
+  try {
+    lightAsinFileRows = await parseFile(event.target.files[0], $("aMarket").value);
+    $("s1").textContent = `Loaded ${lightAsinFileRows.length} unique ASINs from ${event.target.files[0].name}.`;
+  } catch (err) {
+    lightAsinFileRows = [];
+    $("s1").textContent = `File error: ${err.message}`;
+  }
+};
+
+$("lightTemplate").onclick = downloadAsinTemplate;
+$("csv1").onclick = () => exportCsv(lightView, "amazon-light-search.csv");
+
+// --------------------------------------------------------------------------
+// Tab 2: Deep Search
+// --------------------------------------------------------------------------
+
+$("asinFile").onchange = async (event) => {
+  try {
+    asinFileRows = await parseFile(event.target.files[0], $("dMarket").value);
+    $("s2").textContent = `Loaded ${asinFileRows.length} unique ASINs from ${event.target.files[0].name}.`;
+  } catch (err) {
+    asinFileRows = [];
+    $("s2").textContent = `File error: ${err.message}`;
+  }
+};
+
+$("deepTemplate").onclick = downloadAsinTemplate;
+
+$("deepRun").onclick = async () => {
+  showLoader("Starting Deep Search", "Finding products and preparing full detail extraction...");
+  try {
+    requireSession();
+
+    const mode = document.querySelector("[name=deepMode]:checked")?.value || "tab1";
+    let input = [];
+    let query = "";
+
+    if (mode === "file") {
+      input = [...asinFileRows, ...itemsFromText($("asinPaste").value, $("dMarket").value)];
+    } else {
+      query = $("dKeyword").value.trim();
+      if (!query) throw new Error("Enter a keyword for Deep Search.");
+
+      const result = await call({
+        type: "SEARCH",
+        settings: {
+          keyword: query,
+          market: $("dMarket").value,
+          pages: +$("dPages").value,
+          delay: settings.delay,
+        },
+      });
+      input = result.items;
+    }
+
+    input = [...new Map(input.filter((x) => x.asin).map((x) => [x.asin, x])).values()];
+    if (!input.length) {
+      throw new Error("No valid input products. Upload a file, paste ASINs, or enter a keyword.");
+    }
+
+    $("s2").textContent = `Retrieving full details for ${input.length} products...`;
+
+    const enriched = await call({
+      type: "ENRICH",
+      items: input,
+      settings: { concurrency: settings.workers, delay: settings.delay },
+      query,
+    });
+
+    deepAll = enriched.items;
+    deepView = filterRows(deepAll, "b");
+    render("t2", deepView);
+    $("s2").textContent = `Deep Search completed ${deepAll.length}; showing ${deepView.length}.`;
+    highlightBestSellers();
+    hideLoader(true);
+  } catch (err) {
+    $("s2").textContent = err.message;
+    hideLoader(false);
+  }
+};
+
+$("apply2").onclick = () => {
+  deepView = filterRows(deepAll, "b");
+  render("t2", deepView);
+};
+
+$("xlsx2").onclick = async () => {
+  if (!deepAll.length) return alert("No Deep Search results to export.");
+  await window.writeExactProductXlsx(cleanRows(deepAll), "amazon-product-details.xlsx");
+};
+
+$("csv2").onclick = () => exportCsv(deepView, "amazon-product-details.csv");
+
+// --------------------------------------------------------------------------
+// Tab 3: analysis
+//
+// Every KPI, band and chart series below is computed server side. This section
+// draws numbers; it does not produce them.
+// --------------------------------------------------------------------------
+
+$("analysisFile").onchange = async (event) => {
+  try {
+    requireSession();
+    const file = event.target.files[0];
+    const raw = await ProductWorkbook.read(file);
+
+    const rows = raw.map(normalizeObject).filter((x) => x.asin);
+    if (!rows.length) throw new Error("No valid ASIN rows found in that file.");
+
+    // An uploaded workbook may carry stale or third-party figures. Re-score it
+    // so every row in the analysis came from the same model.
+    const scored = await call({ type: "SCORE", items: rows });
+    analysisFileRows = scored.items;
+
+    $("insights").textContent =
+      `Loaded and scored ${analysisFileRows.length} product rows from ${file.name}.`;
+  } catch (err) {
+    analysisFileRows = [];
+    $("insights").textContent = err.message;
+  }
+};
+
+const headerAliases = {
+  producttitle: "name", title: "name", asin: "asin", parentasin: "parentAsin",
+  variationcount: "variationCount", brand: "brand", manufacturer: "manufacturer",
+  currentprice: "price", price: "price", pricenumber: "priceNumber",
+  rating: "review", reviewcount: "reviewCount",
+  badgeminimumunits: "amazonBadgeMinimumUnits", mainrank: "rank",
+  mainrankcategory: "rankCategory", subcategoryrank: "subcategoryRank",
+  rankedsubcategory: "rankedSubcategory", availability: "availability",
+  buyboxseller: "buyBoxSeller", shipsfrom: "shipsFrom", sponsored: "sponsored",
+  productlink: "itemLink", imagelink: "imageLink", status: "status",
+  fulfillment: "fulfillment", seller: "seller",
+};
+
+/**
+ * Maps arbitrary spreadsheet headers onto the field names the server expects.
+ *
+ * Column-name mapping is not proprietary, so it stays client side; it saves a
+ * round trip and keeps the server contract to one fixed shape.
+ */
+function normalizeObject(source) {
+  const out = {};
+  for (const [key, value] of Object.entries(source)) {
+    const normalized = String(key).toLowerCase().replace(/[^a-z0-9]/g, "");
+    const mapped = headerAliases[normalized] || (key.charAt(0).toLowerCase() + key.slice(1));
+    if (out[mapped] == null || out[mapped] === "") out[mapped] = value;
+  }
+  out.asin = String(out.asin ?? "").toUpperCase().match(/[A-Z0-9]{10}/)?.[0] ?? "";
+  out.priceNumber = num(out.priceNumber) ?? num(out.price);
+  return out;
+}
+
+function bars(title, entries, isMoney = false) {
+  const top = entries.slice(0, 10);
+  const max = top[0]?.[1] || 1;
+  return `<div class="chart"><h3>${esc(title)}</h3>${
+    top.map(([k, v]) =>
+      `<div class="barrow"><span>${esc(k)}</span><div class="track">` +
+      `<i style="width:${(v / max) * 100}%"></i></div>` +
+      `<b>${isMoney ? money(v) : Math.round(v).toLocaleString()}</b></div>`
+    ).join("")
+  }</div>`;
+}
+
+function donut(title, obj, isMoney = false) {
+  const entries = Object.entries(obj).filter((x) => x[1] > 0);
+  const total = entries.reduce((s, x) => s + x[1], 0) || 1;
+  const colors = ["#0f766e", "#14b8a6", "#2563eb", "#f59e0b", "#e11d48", "#8b5cf6", "#0891b2"];
+
+  let at = 0;
+  const stops = entries.map((x, i) => {
+    const start = at;
+    at += (x[1] / total) * 360;
+    return `${colors[i % colors.length]} ${start}deg ${at}deg`;
+  }).join(",");
+
+  return `<div class="chart"><h3>${esc(title)}</h3>` +
+    `<div class="donut" style="background:conic-gradient(${stops})"></div>` +
+    `<div class="legend">${
+      entries.map((x, i) =>
+        `<small><i style="background:${colors[i % colors.length]}"></i>${esc(x[0])}: ` +
+        `${isMoney ? money(x[1]) : Math.round(x[1]).toLocaleString()} ` +
+        `(${((x[1] / total) * 100).toFixed(1)}%)</small>`
+      ).join("")
+    }</div></div>`;
+}
+
+function opportunityChart(opportunities) {
+  const top = opportunities.slice(0, 10);
+  const max = top[0]?.opportunityScore || 1;
+
+  return `<div class="chart"><h3>Research Opportunity Score (high demand, low reviews)</h3>${
+    top.map((x) =>
+      `<div class="barrow"><span><a class="asinLink" href="${esc(x.itemLink || "#")}" ` +
+      `target="_blank" rel="noopener">${esc(x.asin)}</a></span>` +
+      `<div class="track"><i style="width:${(x.opportunityScore / max) * 100}%"></i></div>` +
+      `<b>${x.opportunityScore}</b></div>`
+    ).join("") || '<div class="barrow"><span>No scored products yet.</span></div>'
+  }</div>`;
+}
+
+$("analyze").onclick = async () => {
+  try {
+    requireSession();
+
+    const source = $("marketSource").value === "tab2"
+      ? (deepView.length ? deepView : deepAll)
+      : analysisFileRows;
+
+    analysisRows = filterRows(source, "c");
+
+    if (!analysisRows.length) {
+      $("kpis").innerHTML = "";
+      $("charts").innerHTML = "";
+      $("insights").textContent =
+        "No usable product rows. Run Deep Search or upload a workbook, then build the analysis.";
+      return;
+    }
+
+    $("insights").textContent = "Building analysis on the server...";
+
+    const result = await call({ type: "ANALYZE", items: analysisRows });
+    analysisRows = result.items;
+    serverAnalysis = result.analysis;
+
+    const k = serverAnalysis.kpis;
+    $("kpis").innerHTML = [
+      ["\u{1F4E6} Total Products", k.totalProducts.toLocaleString()],
+      ["\u{1F517} Avg. Price", "$" + Number(k.averagePrice).toFixed(2)],
+      ["\u{1F3E6} Est. Market Value", money(k.estimatedMarketValue)],
+      ["\u{1F4CA} Monthly Units", Math.round(k.monthlyUnits).toLocaleString() + "+"],
+      ["\u{1F9FE} Avg. Reviews", Math.round(k.averageReviews).toLocaleString()],
+      ["\u{2699} Sponsored %", Number(k.sponsoredPercent).toFixed(1) + "%"],
+      ["\u{1F4DA} Unique Brands", k.uniqueBrands.toLocaleString()],
+    ].map((x) => `<div class="kpi">${x[0]}<strong>${x[1]}</strong></div>`).join("");
+
+    const c = serverAnalysis.charts;
+    $("charts").innerHTML =
+      donut("Products by Price Range", c.priceBands) +
+      donut("Brand Market Share by Estimated Revenue", c.brandShare, true) +
+      bars("Top 10 Brands by Estimated Market Value", c.brandValue, true) +
+      donut("Monthly Units Distribution", c.unitBands) +
+      bars("Top 10 Categories by Product Count", c.categories) +
+      donut("Rating Distribution", c.ratings) +
+      opportunityChart(serverAnalysis.opportunities) +
+      bars("Estimated Market Value by Main Rank Band", Object.entries(c.rankBandValue), true) +
+      `<div class="chart dashExport"><h3>Export & Report</h3>
+        <button id="dashAll" class="green">Export All Results (CSV)</button>
+        <button id="dashFiltered" class="red">Export Filtered Results (CSV)</button>
+        <button id="dashOpportunity" class="blue">Export Opportunity Table (CSV)</button>
+        <button id="dashPdf" class="purple">Export Market Analysis (PDF)</button></div>`;
+
+    $("dashAll").onclick = () =>
+      exportCsv($("marketSource").value === "tab2" ? deepAll : analysisFileRows, "amazon-all-results.csv");
+    $("dashFiltered").onclick = () => exportCsv(analysisRows, "amazon-filtered-analysis.csv");
+    $("dashOpportunity").onclick = () => exportOpportunities();
+    $("dashPdf").onclick = () => window.print();
+
+    $("insights").textContent =
+      `Analysis of ${analysisRows.length} products from ${$("marketSource").selectedOptions[0].text}. ` +
+      `Every figure was computed on the server.`;
+
+    render("t3", analysisRows);
+    highlightBestSellers();
+  } catch (err) {
+    $("insights").textContent = err.message;
+  }
+};
+
+function exportOpportunities() {
+  const list = serverAnalysis?.opportunities ?? [];
+  if (!list.length) return alert("Build the analysis first.");
+
+  const blob = new Blob(["﻿" + toCsv(list.map((x) => ({
+    ASIN: x.asin,
+    "Product Title": x.name,
+    Brand: x.brand,
+    "Opportunity Score": x.opportunityScore,
+    "Estimated Monthly Units": x.estimatedUnits,
+    "Review Count": x.reviewCount,
+    "Product Link": x.itemLink,
+  })))], { type: "text/csv;charset=utf-8" });
+
+  const url = URL.createObjectURL(blob);
+  chrome.downloads.download(
+    { url, filename: "amazon-opportunity-results.csv", saveAs: true },
+    () => setTimeout(() => URL.revokeObjectURL(url), 30_000),
+  );
+}
+
+$("toggleReport").onclick = () => $("t3").classList.toggle("hiddenReport");
+$("exportAll").onclick = () =>
+  exportCsv($("marketSource").value === "tab2" ? deepAll : analysisFileRows, "amazon-all-results.csv");
+$("exportFiltered").onclick = () => exportCsv(analysisRows, "amazon-filtered-analysis.csv");
+$("exportOpportunity").onclick = () => exportOpportunities();
+$("pdf").onclick = () => window.print();
+
+document.querySelectorAll(".stop").forEach((b) => {
+  b.onclick = () => send({ type: "STOP" });
+});
+
+// --------------------------------------------------------------------------
+// Presentation extras
+// --------------------------------------------------------------------------
+
+function highlightBestSellers() {
+  document.querySelectorAll(".table table,.myTable table").forEach((table) => {
+    const heads = [...table.querySelectorAll("thead th")].map((x) => x.textContent.toLowerCase());
+    const idx = heads.findIndex((x) => x.includes("sub rank"));
+    if (idx < 0) return;
+
+    table.querySelectorAll("tbody tr").forEach((tr) => {
+      const cell = tr.cells[idx];
+      const value = Number((cell?.textContent || "").replace(/[^0-9]/g, ""));
+      if (value === 1) {
+        tr.classList.add("bestSellerRow");
+        if (!cell.querySelector(".bestSellerBadge")) {
+          cell.insertAdjacentHTML(
+            "beforeend",
+            '<span class="bestSellerBadge">★ #1 BEST SELLER</span>',
+          );
+        }
+      }
+    });
+  });
+}
+
+chrome.runtime.onMessage.addListener((m) => {
+  if (m.type === "SEARCH_PROGRESS") {
+    $("s1").textContent = `Amazon search page ${m.page}/${m.total}; ${m.count} products found`;
+    updateLoader({
+      stage: 2,
+      title: "Collecting products",
+      message: `Search page ${m.page} completed`,
+      page: m.page,
+      total: m.total,
+      count: m.count,
+      current: `Found ${m.count} unique products`,
+    });
+  }
+
+  if (m.type === "PROGRESS") {
+    $("s2").textContent = `Deep Search ${m.done}/${m.total}`;
+    updateLoader({
+      stage: 3,
+      title: "Retrieving product details",
+      message: "Opening product pages and reading full details",
+      done: m.done,
+      total: m.total,
+      count: m.unique,
+      current: `${m.done} of ${m.total} products completed`,
+      percent: 42 + (m.done / Math.max(1, m.total)) * 56,
+    });
+  }
+});
+
+new MutationObserver(() => highlightBestSellers())
+  .observe(document.body, { childList: true, subtree: true });
+
+// --------------------------------------------------------------------------
+// Settings
+// --------------------------------------------------------------------------
+
+const DEFAULT_SETTINGS = { market: "ca", workers: 3, delay: 4, pages: 3 };
+let settings = { ...DEFAULT_SETTINGS };
+
+function applySettings() {
+  for (const id of ["aMarket", "dMarket"]) $(id).value = settings.market;
+  $("bCon").value = String(settings.workers);
+  $("bDelay").value = String(settings.delay);
+  for (const id of ["aPages", "dPages"]) $(id).value = String(settings.pages);
+  $("setMarket").value = settings.market;
+  $("setWorkers").value = settings.workers;
+  $("setDelay").value = settings.delay;
+  $("setPages").value = settings.pages;
+}
+
+chrome.storage.local.get("researchSettings", (stored) => {
+  settings = { ...DEFAULT_SETTINGS, ...(stored.researchSettings || {}) };
+  applySettings();
+});
+
+$("settingsBtn").onclick = () => {
+  $("settingsModal").classList.remove("hidden");
+  applySettings();
+};
+$("closeSettings").onclick = () => $("settingsModal").classList.add("hidden");
+$("settingsModal").onclick = (e) => {
+  if (e.target === $("settingsModal")) $("settingsModal").classList.add("hidden");
+};
+
+$("saveSettings").onclick = () => {
+  settings = {
+    market: $("setMarket").value,
+    // Capped at 4: the Amazon fetch layer clamps to the same number, and going
+    // higher only raises the odds of a robot check.
+    workers: Math.max(1, Math.min(4, +$("setWorkers").value || 3)),
+    delay: Math.max(1, Math.min(30, +$("setDelay").value || 4)),
+    pages: Math.max(0, Math.floor(Number($("setPages").value) || 0)),
+  };
+  chrome.storage.local.set({ researchSettings: settings }, () => {
+    $("settingsStatus").textContent = "Settings saved locally.";
+    applySettings();
+  });
+};
+
+$("resetSettings").onclick = () => {
+  settings = { ...DEFAULT_SETTINGS };
+  chrome.storage.local.set({ researchSettings: settings }, () => {
+    $("settingsStatus").textContent = "Defaults restored.";
+    applySettings();
+  });
+};
+
+$("bCon").onchange = () => {
+  settings.workers = Math.max(1, Math.min(4, +$("bCon").value || 3));
+};
+$("bDelay").onchange = () => {
+  settings.delay = Math.max(1, Math.min(30, +$("bDelay").value || 4));
+};
+$("aMarket").onchange = () => (settings.market = $("aMarket").value);
+$("dMarket").onchange = () => (settings.market = $("dMarket").value);
+
+$("helpBtn").onclick = () => alert(
+  "Tab 1: search by keyword, paste ASINs or product URLs, or upload a file.\n" +
+  "Tab 2: Deep Search pulls full details for every product found.\n" +
+  "Tab 3: build the analysis from Deep Search results or an uploaded workbook.\n\n" +
+  "Recommended: 2-3 workers and a 4 second delay.\n\n" +
+  "All estimates are calculated on the server. One search costs one request " +
+  "against your monthly quota, however many products it covers.",
+);
+
+$("savedDataBtn").onclick = () => {
+  const count = (lightRaw?.length || 0) + (deepAll?.length || 0);
+  alert(`${count} products are held in this dashboard session. Export to save a permanent copy.`);
+};
+
+document.querySelectorAll(".proTabs button[data-tab]").forEach((b) => {
+  b.onclick = () => {
+    document.querySelectorAll(".tab").forEach((x) => x.classList.add("hidden"));
+    document.querySelectorAll(".proTabs button").forEach((x) => x.classList.remove("active"));
+    $(b.dataset.tab).classList.remove("hidden");
+    b.classList.add("active");
+  };
+});
+
+/** Consumed by market-v21.js to seed a market from the current Deep Search. */
+window.getV19DeepSearchRows = () => deepAll.map((x) => ({ ...x }));

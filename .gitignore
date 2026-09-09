@@ -1,0 +1,31 @@
+# Secrets. The service role key belongs in an Edge Function secret and nowhere
+# else; .env is for local development only and must never be committed.
+.env
+.env.*
+!.env.example
+
+# The extension signing key. The public half is pinned in extension/manifest.json
+# (that is fine, it is public). The private half determines the extension ID and
+# must stay out of the repository.
+*.pem
+*.p12
+
+# Build output
+dist/
+*.zip
+*.crx
+
+# Dependencies
+node_modules/
+
+# Supabase CLI local state
+supabase/.branches/
+supabase/.temp/
+.supabase/
+
+# Editor and OS noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

@@ -1,0 +1,282 @@
+/* ---------------------------------------------------------------------------
+   Auth chrome: the login gate, the account bar, and the blocked-state screens.
+
+   Dark forest and ink. Forest (#0f766e) was already the accent in the newer
+   parts of the product; ink (#0f2742) was already the text colour. This makes
+   them the ground rather than the trim, so the gate reads as part of the same
+   product rather than a bolted-on login page.
+   --------------------------------------------------------------------------- */
+
+:root {
+  --amr-ink: #0b1f33;
+  --amr-ink-deep: #071726;
+  --amr-forest: #0f766e;
+  --amr-forest-bright: #14b8a6;
+  --amr-forest-dim: #0d5f59;
+  --amr-mist: #94a9bd;
+  --amr-line: rgba(148, 169, 189, 0.18);
+  --amr-danger: #f87171;
+  --amr-warn: #fbbf24;
+}
+
+/* The gate covers everything until the server confirms an active account. */
+#amrGate {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(1200px 600px at 15% -10%, rgba(20, 184, 166, 0.16), transparent 60%),
+    radial-gradient(900px 500px at 110% 110%, rgba(15, 118, 110, 0.14), transparent 55%),
+    var(--amr-ink-deep);
+  color: #e8f1f8;
+  font: 15px/1.55 "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+  overflow: auto;
+}
+
+#amrGate[hidden] { display: none !important; }
+
+.amrCard {
+  width: 100%;
+  max-width: 420px;
+  background: rgba(11, 31, 51, 0.82);
+  border: 1px solid var(--amr-line);
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+}
+
+.amrBrand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 26px;
+}
+
+.amrBrand img { width: 42px; height: 42px; border-radius: 10px; }
+.amrBrand b { display: block; font-size: 16px; letter-spacing: 0.2px; }
+.amrBrand small { display: block; color: var(--amr-mist); font-size: 12px; }
+
+.amrCard h1 {
+  margin: 0 0 6px;
+  font-size: 21px;
+  font-weight: 650;
+  letter-spacing: -0.2px;
+}
+
+.amrCard > p {
+  margin: 0 0 22px;
+  color: var(--amr-mist);
+  font-size: 13.5px;
+}
+
+.amrField { margin-bottom: 15px; }
+
+.amrField label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--amr-mist);
+}
+
+.amrField input {
+  width: 100%;
+  padding: 11px 13px;
+  border-radius: 9px;
+  border: 1px solid var(--amr-line);
+  background: rgba(7, 23, 38, 0.75);
+  color: #e8f1f8;
+  font: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.amrField input:focus {
+  outline: none;
+  border-color: var(--amr-forest-bright);
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.18);
+}
+
+.amrField input:disabled { opacity: 0.55; }
+
+.amrSubmit {
+  width: 100%;
+  margin-top: 8px;
+  padding: 12px;
+  border: 0;
+  border-radius: 9px;
+  background: linear-gradient(180deg, var(--amr-forest-bright), var(--amr-forest));
+  color: #04241f;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+
+.amrSubmit:hover:not(:disabled) { filter: brightness(1.08); }
+.amrSubmit:disabled { cursor: progress; filter: saturate(0.5) brightness(0.8); }
+
+/* Error, warning and maintenance banners share one shape. */
+.amrNotice {
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border-radius: 9px;
+  font-size: 13.5px;
+  border: 1px solid;
+}
+
+.amrNotice[hidden] { display: none !important; }
+
+.amrNotice.error {
+  background: rgba(248, 113, 113, 0.12);
+  border-color: rgba(248, 113, 113, 0.35);
+  color: #fecaca;
+}
+
+.amrNotice.warn {
+  background: rgba(251, 191, 36, 0.12);
+  border-color: rgba(251, 191, 36, 0.35);
+  color: #fde68a;
+}
+
+.amrNotice.info {
+  background: rgba(20, 184, 166, 0.12);
+  border-color: rgba(20, 184, 166, 0.32);
+  color: #99f6e4;
+}
+
+.amrNotice b { display: block; margin-bottom: 3px; }
+
+.amrFoot {
+  margin: 22px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--amr-line);
+  color: var(--amr-mist);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* Blocked states reuse the card but swap the form for an explanation. */
+.amrBlockedIcon { font-size: 34px; line-height: 1; margin-bottom: 12px; }
+
+.amrActions {
+  display: flex;
+  gap: 9px;
+  margin-top: 18px;
+}
+
+.amrActions button {
+  flex: 1;
+  padding: 10px;
+  border-radius: 9px;
+  border: 1px solid var(--amr-line);
+  background: rgba(7, 23, 38, 0.7);
+  color: #cfe3f0;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.amrActions button:hover { border-color: var(--amr-forest-bright); color: #e8f1f8; }
+
+/* ---------------------------------------------------------------------------
+   Account bar: pinned to the top of the workspace once signed in.
+   --------------------------------------------------------------------------- */
+
+#amrAccountBar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 7px 18px;
+  background: var(--amr-ink-deep);
+  color: #cfe3f0;
+  font: 12.5px/1.4 "Segoe UI", system-ui, Arial, sans-serif;
+  border-bottom: 1px solid rgba(20, 184, 166, 0.22);
+}
+
+#amrAccountBar[hidden] { display: none !important; }
+
+.amrWho { display: flex; align-items: center; gap: 8px; }
+
+.amrDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--amr-forest-bright);
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.2);
+}
+
+.amrWho b { color: #e8f1f8; font-weight: 600; }
+
+.amrRole {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(20, 184, 166, 0.16);
+  border: 1px solid rgba(20, 184, 166, 0.3);
+  color: #99f6e4;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.amrQuota { margin-left: auto; display: flex; align-items: center; gap: 9px; }
+
+.amrQuotaTrack {
+  width: 110px;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(148, 169, 189, 0.2);
+  overflow: hidden;
+}
+
+.amrQuotaTrack i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--amr-forest-bright);
+  transition: width 0.3s;
+}
+
+.amrQuotaTrack.low i { background: var(--amr-warn); }
+.amrQuotaTrack.out i { background: var(--amr-danger); }
+
+#amrSignOut {
+  padding: 5px 12px;
+  border-radius: 7px;
+  border: 1px solid var(--amr-line);
+  background: transparent;
+  color: #cfe3f0;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#amrSignOut:hover { border-color: var(--amr-danger); color: #fecaca; }
+
+/* Transient toast for mid-session interruptions (quota hit, kill switch on). */
+#amrToast {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 2147482000;
+  max-width: 360px;
+  padding: 14px 16px;
+  border-radius: 11px;
+  background: var(--amr-ink);
+  color: #e8f1f8;
+  border: 1px solid var(--amr-line);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.45);
+  font: 13.5px/1.5 "Segoe UI", system-ui, Arial, sans-serif;
+}
+
+#amrToast[hidden] { display: none !important; }
+#amrToast b { display: block; margin-bottom: 3px; }
+#amrToast.error { border-color: rgba(248, 113, 113, 0.45); }
+#amrToast.warn { border-color: rgba(251, 191, 36, 0.45); }

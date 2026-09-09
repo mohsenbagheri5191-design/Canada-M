@@ -1,1 +1,41 @@
-<!doctype html><html><head><meta charset="utf-8"><style>body{font:14px Segoe UI,Arial;padding:16px;width:250px;background:#eef3f8;color:#14233a}button{width:100%;padding:11px;border:0;border-radius:8px;background:#176bd5;color:white;font-weight:700}</style></head><body><h3>Amazon Market Research Pro</h3><button id="open">Open Dashboard</button><script src="popup.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  body {
+    margin: 0;
+    width: 264px;
+    padding: 18px;
+    background: #071726;
+    color: #e8f1f8;
+    font: 14px/1.5 "Segoe UI", system-ui, Arial, sans-serif;
+  }
+  h3 { margin: 0 0 4px; font-size: 15px; font-weight: 650; }
+  .sub { margin: 0 0 16px; color: #94a9bd; font-size: 12px; }
+  .state {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 14px; padding: 9px 11px;
+    border: 1px solid rgba(148,169,189,.18); border-radius: 9px;
+    background: rgba(11,31,51,.6); font-size: 12.5px;
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #64748b; flex: none; }
+  .dot.on { background: #14b8a6; box-shadow: 0 0 0 3px rgba(20,184,166,.2); }
+  .dot.off { background: #f87171; box-shadow: 0 0 0 3px rgba(248,113,113,.18); }
+  .state span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  button {
+    width: 100%; padding: 11px; border: 0; border-radius: 9px;
+    background: linear-gradient(180deg,#14b8a6,#0f766e);
+    color: #04241f; font: inherit; font-weight: 700; cursor: pointer;
+  }
+  button:hover { filter: brightness(1.08); }
+</style>
+</head>
+<body>
+  <h3>Amazon Market Research Pro</h3>
+  <p class="sub">Invite-only research workspace</p>
+  <div class="state"><i class="dot" id="dot"></i><span id="state">Checking access...</span></div>
+  <button id="open" type="button">Open Dashboard</button>
+  <script src="popup.js"></script>
+</body>
+</html>

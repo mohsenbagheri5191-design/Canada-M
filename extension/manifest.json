@@ -1,22 +1,29 @@
 {
   "manifest_version": 3,
-  "name": "Amazon Market Research Pro V25.1 Complete Data Fix",
-  "version": "25.1.5",
-  "description": "Deep Search, HTML-based market share intelligence, and restored V23 My Products portfolio.",
+  "name": "Amazon Market Research Pro",
+  "version": "30.0.0",
+  "description": "Invite-only Amazon seller and agency research. Deep Search, brand market share intelligence, and portfolio tracking.",
+
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq4ptunpLe5h8tTy/ME0np533NuPNwaLBJkuxvFP6PasWzll7uDhSSKZJUMRKLFytlcMQYIMrdFmGTNvnQvVswL67XJvsawDr/JhEUYXsH3dnvYi7W4XlhzCcizYyvE6n5BdlzPjXUPb34ytdRzH2Bc7deowO/mWvtwnSiqvoGp6mEdd1KlZpf3Onc0j+USvyzLr6vi/hJ/IAQdbAWjg8ZHfBMcp5rJ6Hppiw4x1xNarRrL891HetNQ8pCLd/azxojaCbCdemCa3HHgZJPELszJQTL7lCvWWPUitCSJnAZZhI4fXk2AoVaKJnK0aFLW5ylOMozOvfjp91uU3HSbMSbQIDAQAB",
+
   "permissions": [
     "storage",
     "downloads",
     "alarms",
-    "offscreen",
-    "unlimitedStorage"
+    "offscreen"
   ],
+
   "host_permissions": [
     "https://www.amazon.ca/*",
-    "https://www.amazon.com/*"
+    "https://www.amazon.com/*",
+    "https://ftwkxuqqnbtuegabxxnj.supabase.co/*"
   ],
+
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
+
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -26,15 +33,20 @@
       "128": "icon128.png"
     }
   },
+
   "icons": {
     "16": "icon16.png",
     "32": "icon32.png",
     "48": "icon48.png",
     "128": "icon128.png"
   },
+
   "sandbox": {
-    "pages": [
-      "brand-dashboard.html"
-    ]
+    "pages": ["brand-dashboard.html"]
+  },
+
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'",
+    "sandbox": "sandbox allow-scripts allow-forms allow-popups allow-modals; script-src 'self' 'unsafe-inline'; child-src 'self'"
   }
 }

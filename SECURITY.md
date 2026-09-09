@@ -294,11 +294,22 @@ host it on a public URL without putting your own gate in front of it: HTTP
 basic auth, an IP allowlist, or a private network. Running it locally, as
 SETUP.md suggests, sidesteps this entirely.
 
-**The extension signing key** (`*.pem`) determines the extension ID that the
-CORS allowlist trusts. Keep it out of the repository — `.gitignore` covers it —
-and store it somewhere you will still have it at the next release. Losing it
-means a new ID and an allowlist update; leaking it lets someone else build an
-extension that claims the same identity.
+**The pinned extension ID.** `extension/manifest.json` carries a `key` field:
+the *public* half of an RSA keypair. Chrome derives the extension ID from it,
+which is why the ID is `mmekjhdfdgcbnphlbpbmkfjiibcfocpk` on every machine and
+survives reloads, and why the CORS allowlist could be configured before the
+extension had ever been loaded.
+
+Committing a public key is fine. The matching private key was generated
+outside the repository and is not needed for anything here: loading unpacked
+derives the ID from the public key alone, and publishing to the Chrome Web
+Store makes Google manage signing. You would only need a private key to
+distribute a self-signed `.crx` yourself.
+
+If the `key` field is ever removed or changed, the ID changes with it and the
+allowlist needs updating (admin console → Settings → CORS allowlist).
+`.gitignore` covers `*.pem` and `*.p12` so private key material cannot be
+committed by accident.
 
 ---
 

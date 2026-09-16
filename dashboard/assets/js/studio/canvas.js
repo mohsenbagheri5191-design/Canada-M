@@ -103,6 +103,10 @@ export function createCanvas(editor) {
       theme: editor.theme,
       scope: editor.scope(),
       editable: true,
+      // The canvas draws the breakpoint and state the inspector is editing,
+      // so what you change is what you see.
+      breakpoint: editor.breakpoint,
+      state: editor.state,
       onNode: (node, dom) => domFor.set(node.id, dom),
     });
 

@@ -9,8 +9,8 @@
 import { el, mount, on, drag } from "../core/dom.js";
 import { icon, iconNames } from "../core/icons.js";
 import { registry, getDef, groupedFields, categories, shadowKeys } from "../data/registry.js";
-import { blocks, blockGroups, screenTemplates, stylePresetGroups, applyStylePreset, devices } from "../data/presets.js";
-import { formatterNames, comparators, findNode } from "../render/renderer.js";
+import { blocks, blockGroups, screenTemplates, stylePresetGroups, stylePresetPatch, devices } from "../data/presets.js";
+import { formatterNames, comparators, findNode, BREAKPOINTS } from "../render/renderer.js";
 import { fuzzy, fmt, clamp } from "../core/util.js";
 import {
   section,
@@ -205,6 +205,28 @@ export function createInspector(editor) {
     const out = [];
     const q = insertQuery.trim();
 
+    // Blocks saved from the canvas come first: they are this project's own,
+    // and burying them under thirty built-ins would make "Save as a block"
+    // a dead end.
+    const saved = (editor.savedBlocks ?? []).filter((b) => fuzzy(q, b.name).hit);
+    if (saved.length) {
+      out.push(
+        section(
+          el("span.row", { style: { gap: "6px" } }, icon("package", 12), "Saved blocks", el("span.dim", { style: { fontWeight: 400 } }, `${saved.length}`)),
+          el(
+            "div.palette-grid",
+            ...saved.map((block) =>
+              blockCard(
+                { key: block.key, name: block.name, description: "Saved from this design", tree: () => structuredClone(block.tree) },
+                { onRemove: () => editor.removeSavedBlock(block.key) },
+              ),
+            ),
+          ),
+          { open: true, id: "blocks-saved" },
+        ),
+      );
+    }
+
     for (const group of blockGroups) {
       const items = blocks
         .filter((b) => b.group === group.key)
@@ -230,22 +252,39 @@ export function createInspector(editor) {
     return out;
   }
 
-  function blockCard(block) {
-    const card = el(
-      "button.palette-card",
-      {
-        type: "button",
-        "data-tip": block.description,
-        "data-tip-place": "left-start",
-        onclick: () => {
-          editor.insertTree(block.tree(), { label: `Insert ${block.name}` });
+  function blockCard(block, { onRemove = null } = {}) {
+    return el(
+      "div",
+      { style: { position: "relative" } },
+      el(
+        "button.palette-card",
+        {
+          type: "button",
+          style: { width: "100%" },
+          "data-tip": block.description,
+          "data-tip-place": "left-start",
+          onclick: () => {
+            editor.insertTree(block.tree(), { label: `Insert ${block.name}` });
+          },
+          onpointerdown: (event) => beginPaletteDrag(event, { label: block.name, glyph: "package", make: () => block.tree() }),
         },
-        onpointerdown: (event) => beginPaletteDrag(event, { label: block.name, glyph: "package", make: () => block.tree() }),
-      },
-      el("div.palette-thumb", thumbFor(block)),
-      el("div.palette-meta", el("b", block.name), el("small", block.description)),
+        el("div.palette-thumb", thumbFor(block)),
+        el("div.palette-meta", el("b", block.name), el("small", block.description)),
+      ),
+      onRemove &&
+        el(
+          "button.btn.sm.icon.ghost",
+          {
+            "data-tip": "Forget this block",
+            style: { position: "absolute", top: "3px", right: "3px", background: "var(--surface-overlay)", border: "1px solid var(--line)" },
+            onclick: (event) => {
+              event.stopPropagation();
+              onRemove();
+            },
+          },
+          icon("close", 11),
+        ),
     );
-    return card;
   }
 
   /** A real miniature render of the preset, not an illustration. */
@@ -404,7 +443,7 @@ export function createInspector(editor) {
     const declared = new Set(Object.keys(def.fields ?? {}));
     const out = [];
 
-    out.push(contextBar(def));
+    out.push(contextBar(def, layer));
 
     // Style presets first: the fastest path to a decent result.
     //
@@ -437,8 +476,9 @@ export function createInspector(editor) {
                         {
                           type: "button",
                           onclick: () => {
-                            const next = applyStylePreset(layer.props, preset.props, declared);
-                            editor.setProps(layer.id, next);
+                            // A patch, so applying a preset while editing a
+                            // breakpoint overrides only what the preset sets.
+                            editor.patchProps(layer.id, stylePresetPatch(preset.props, declared));
                             editor.commit(`${preset.name} preset`);
                           },
                         },
@@ -467,48 +507,103 @@ export function createInspector(editor) {
     return el("div.col", { style: { gap: 0 } }, ...out);
   }
 
-  /** Breakpoint and interaction-state selector. */
-  function contextBar(def) {
+  /**
+   * Breakpoint and interaction-state selector.
+   *
+   * A breakpoint that already carries overrides is marked, and the bar states
+   * which layer edits are landing in — the one thing that has to be
+   * unambiguous, because every control below writes into it.
+   */
+  function contextBar(def, layer) {
     const states = ["default", ...(def.states ?? [])];
+    const overrideCount =
+      editor.state !== "default"
+        ? Object.keys(layer.states?.[editor.state] ?? {}).length
+        : editor.breakpoint !== "base"
+          ? Object.keys(layer.responsive?.[editor.breakpoint] ?? {}).length
+          : 0;
+
+    const editingBase = editor.breakpoint === "base" && editor.state === "default";
+
     return el(
-      "div.style-context",
+      "div.col",
+      { style: { gap: 0 } },
       el(
-        "div.col",
-        { style: { gap: "3px", flex: "1 1 0", minWidth: 0 } },
-        el("span.field-label", "Breakpoint"),
-        segmented(
-          [
-            { value: "base", icon: "smartphone", tip: "Base (all sizes)" },
-            { value: "md", icon: "tablet", tip: "Tablet and up" },
-            { value: "lg", icon: "monitor", tip: "Desktop and up" },
-          ],
-          editor.breakpoint,
-          (value) => {
-            editor.breakpoint = value;
-            render();
-            toast(
-              value === "base" ? "Editing the base breakpoint" : `Editing the ${value} override`,
-              { tone: "info", duration: 2200, detail: value === "base" ? "Values here apply everywhere unless overridden." : "Only values you change here are overridden; the rest stay inherited." },
-            );
-          },
-          { block: true },
-        ),
-      ),
-      states.length > 1 &&
+        "div.style-context",
         el(
           "div.col",
           { style: { gap: "3px", flex: "1 1 0", minWidth: 0 } },
-          el("span.field-label", "State"),
+          el("span.field-label", "Breakpoint"),
+          segmented(
+            BREAKPOINTS.map((b) => ({
+              value: b.key,
+              icon: b.glyph,
+              tip: `${b.label} — ${b.hint}${Object.keys(layer.responsive?.[b.key] ?? {}).length ? ` · ${Object.keys(layer.responsive[b.key]).length} overridden` : ""}`,
+            })),
+            editor.breakpoint,
+            (value) => {
+              editor.breakpoint = value;
+              editor.canvas.render();
+              render();
+            },
+            { block: true },
+          ),
+        ),
+        states.length > 1 &&
           el(
-            "select.select",
+            "div.col",
+            { style: { gap: "3px", flex: "1 1 0", minWidth: 0 } },
+            el("span.field-label", "State"),
+            el(
+              "select.select",
+              {
+                value: editor.state,
+                onchange: (event) => {
+                  editor.state = event.target.value;
+                  editor.canvas.render();
+                  render();
+                },
+              },
+              ...states.map((s) => el("option", { value: s }, fmt.label(s))),
+            ),
+          ),
+      ),
+      !editingBase &&
+        el(
+          "div",
+          {
+            style: {
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "6px var(--s-3)",
+              background: "var(--warning-soft)",
+              color: "var(--warning)",
+              fontSize: "var(--fs-11)",
+              borderBottom: "1px solid var(--line-faint)",
+            },
+          },
+          icon("layers", 12),
+          el(
+            "span",
+            { style: { flex: "1 1 auto" } },
+            editor.state !== "default"
+              ? `Editing the ${fmt.label(editor.state)} state · ${overrideCount} override${overrideCount === 1 ? "" : "s"}`
+              : `Editing the ${BREAKPOINTS.find((b) => b.key === editor.breakpoint)?.label} override · ${overrideCount} value${overrideCount === 1 ? "" : "s"}`,
+          ),
+          el(
+            "button",
             {
-              value: editor.state,
-              onchange: (event) => {
-                editor.state = event.target.value;
+              type: "button",
+              style: { color: "inherit", textDecoration: "underline", fontSize: "var(--fs-11)" },
+              onclick: () => {
+                editor.breakpoint = "base";
+                editor.state = "default";
+                editor.canvas.render();
                 render();
               },
             },
-            ...states.map((s) => el("option", { value: s }, fmt.label(s))),
+            "Back to base",
           ),
         ),
     );
@@ -557,7 +652,7 @@ export function createInspector(editor) {
                             const declared = new Set(Object.keys(getDef(shared)?.fields ?? {}));
                             for (const id of ids) {
                               const layer = findNode(editor.screen.root, id);
-                              editor.setProps(id, applyStylePreset(layer.props, preset.props, declared));
+                              editor.patchProps(id, stylePresetPatch(preset.props, declared), { silent: true });
                             }
                             editor.commit(`${preset.name} preset on ${ids.length}`);
                           },
@@ -582,7 +677,11 @@ export function createInspector(editor) {
   /* --- Individual controls ------------------------------------------------ */
 
   function controlFor(layer, spec) {
-    const value = layer.props?.[spec.key];
+    // Read through the layer stack, not the base props, so the panel shows
+    // what the canvas is drawing for the selected breakpoint and state.
+    const value = editor.effectiveProps(layer)[spec.key];
+    const origin = editor.originOf(layer, spec.key);
+    const overridden = origin === "breakpoint" || origin === "state";
     const bound = value && typeof value === "object" && Object.hasOwn(value, "$bind");
 
     const set = (next, meta = {}) => {
@@ -590,9 +689,31 @@ export function createInspector(editor) {
       if (!meta.live) editor.commit(`${spec.label ?? fmt.label(spec.key)}`, { coalesceKey: `prop:${layer.id}:${spec.key}` });
     };
 
+    /**
+     * The label carries the override state: a dot when this layer sets its own
+     * value, clickable to drop back to inherited. Without it, an override is
+     * invisible and people edit the wrong layer for an hour.
+     */
+    const labelNode = (extra = null) =>
+      el(
+        "span.field-label.row",
+        { style: { gap: "4px", minWidth: 0 } },
+        overridden
+          ? el("button", {
+              class: "inherited-mark",
+              "data-tip": `Overridden at ${editor.state !== "default" ? fmt.label(editor.state) : editor.breakpoint}. Click to inherit again.`,
+              style: { border: 0, padding: 0, cursor: "pointer" },
+              onclick: () => editor.clearOverride(layer.id, spec.key),
+            })
+          : null,
+        el("span.truncate", spec.label ?? fmt.label(spec.key)),
+        extra,
+      );
+
     if (bound) {
-      return fieldRow(
-        spec.label ?? fmt.label(spec.key),
+      return el(
+        "div.field-row",
+        labelNode(),
         el(
           "div.row",
           { style: { gap: "4px" } },
@@ -618,16 +739,13 @@ export function createInspector(editor) {
     if (spec.bindable) {
       return el(
         "div.field-row",
-        el(
-          "span.field-label.row",
-          { style: { gap: "4px" } },
-          el("span.truncate", spec.label ?? fmt.label(spec.key)),
+        labelNode(
           el(
             "button",
             {
               type: "button",
               "data-tip": "Bind to data",
-              style: { color: "var(--text-tertiary)", display: "flex", padding: "1px", borderRadius: "3px" },
+              style: { color: "var(--text-tertiary)", display: "flex", padding: "1px", borderRadius: "3px", flex: "none" },
               onclick: () => {
                 setPanel("data");
                 editor.pendingBindKey = spec.key;
@@ -641,10 +759,10 @@ export function createInspector(editor) {
     }
 
     if (spec.control === "spacing" || spec.control === "radius" || spec.control === "size" || spec.control === "textarea") {
-      return el("div.field-row.wide", el("span.field-label", spec.label ?? fmt.label(spec.key)), control);
+      return el("div.field-row.wide", labelNode(), control);
     }
 
-    return fieldRow(spec.label ?? fmt.label(spec.key), control);
+    return el("div.field-row", labelNode(), control);
   }
 
   function buildControl(spec, value, set, layer) {

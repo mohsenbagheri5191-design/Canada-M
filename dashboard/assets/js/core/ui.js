@@ -549,13 +549,20 @@ export function numberField(value, onChange, options = {}) {
 
   const trim = (n) => String(Math.round(n * 1000) / 1000);
 
+  // Enter commits and then blurs, and blur commits too. Tracking the last
+  // committed value makes the second call a no-op, which both avoids a
+  // redundant re-render mid-event and keeps a no-op blur out of the undo stack.
+  let lastCommitted = value ?? null;
+
   function commit() {
     const parsed = parse(input.value);
     if (parsed === null) {
-      input.value = value ?? "";
+      input.value = lastCommitted ?? "";
       return;
     }
     input.value = trim(parsed);
+    if (parsed === lastCommitted) return;
+    lastCommitted = parsed;
     onChange?.(parsed, { live: false });
   }
 
@@ -586,6 +593,9 @@ export function numberField(value, onChange, options = {}) {
 
   node.setValue = (v) => {
     input.value = v === null || v === undefined ? "" : trim(Number(v));
+    // Keep the commit guard in step, or a programmatic set followed by a blur
+    // would look like a change and push a spurious undo step.
+    lastCommitted = v === null || v === undefined ? null : Number(v);
   };
   node.input = input;
   return node;

@@ -193,15 +193,22 @@ The shell lazily imports it, and owns nothing inside it.
   measurements to the parent. Right-click for duplicate, wrap, copy style, save
   as a block.
 - **Insert.** Three modes. *Sections* are ~30 composed presets across nine
-  groups, each shown as a real miniature render rather than an illustration.
-  *Elements* is every component in the registry. *Screens* is eight full
-  templates. All draggable onto the canvas or click-to-insert.
+  groups, each shown as a real miniature render rather than an illustration,
+  with anything you saved from the canvas pinned above them. *Elements* is every
+  component in the registry. *Screens* is eight full templates. All draggable
+  onto the canvas or click-to-insert.
 - **Style.** Generated from the registry, so adding a prop to a component makes
   it editable with no change to the inspector. Preset chips for elevation,
   corners, density, type scale and emphasis; a visual box-model control with a
   link toggle; per-corner radius; hug/fill/fixed sizing; drag-to-scrub numbers;
-  contrast-checked colour fields; an icon picker over the whole set. Breakpoint
-  and interaction-state selectors sit above it.
+  contrast-checked colour fields; an icon picker over the whole set.
+- **Responsive overrides and states.** A node's props are layered: registry
+  defaults → base → `responsive[md|lg]` → `states[hover|pressed|disabled|…]`,
+  merged by `layeredProps` in the renderer. Switching breakpoint re-renders the
+  canvas to match, so what you change is what you see; a bar states which layer
+  edits are landing in, each overridden value carries a dot, and clicking the
+  dot drops back to inherited. Empty layers are pruned so they never appear as
+  diff noise.
 - **Data.** Bind any bindable prop to a registered source, picked from a live
   sample tree — click a field to bind it. Format and fallback. Below that, the
   action editor (ten action types, chainable) and a guided condition builder.

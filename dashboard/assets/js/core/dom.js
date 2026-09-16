@@ -117,9 +117,16 @@ export function svgEl(tag, attrs = {}) {
   return node;
 }
 
-/** Replace all children of `node` with `children`. */
+/**
+ * Replace all children of `node` with `children`.
+ *
+ * Removes one at a time rather than calling replaceChildren, which throws if a
+ * child was already detached — which happens whenever a re-render is triggered
+ * from inside a blur or change handler on an element in the subtree being
+ * replaced. Re-reading firstChild each pass is safe under that mutation.
+ */
 export function mount(node, ...children) {
-  node.replaceChildren();
+  while (node.firstChild) node.removeChild(node.firstChild);
   append(node, children);
   return node;
 }

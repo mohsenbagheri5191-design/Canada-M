@@ -14,7 +14,17 @@ import { toast, menu, confirm, modal, segmented, splitHandle, emptyState } from 
 import { registerCommands } from "../core/shell.js";
 import { registry, getDef, defaultProps } from "../data/registry.js";
 import { devices, screenTemplates } from "../data/presets.js";
-import { findNode, findParent, countNodes, maxDepth, cloneSubtree, walk, renderScreen as renderScreenSync } from "../render/renderer.js";
+import {
+  findNode,
+  findParent,
+  countNodes,
+  maxDepth,
+  cloneSubtree,
+  walk,
+  layeredProps,
+  propOrigin,
+  renderScreen as renderScreenSync,
+} from "../render/renderer.js";
 import { createCanvas } from "../studio/canvas.js";
 import { createInspector } from "../studio/inspector.js";
 import { openThemeEditor } from "../studio/theme-editor.js";
@@ -174,10 +184,39 @@ export function mount(host, { db, go, setCrumbs, params, app }) {
 
     /* --- Props ---------------------------------------------------------- */
 
+    /**
+     * The object an edit should be written into, given the breakpoint and
+     * state selected in the inspector. Created on first write so a node that
+     * has never been overridden carries no empty layers.
+     */
+    writeLayer(node) {
+      if (editor.state !== "default") {
+        node.states = node.states ?? {};
+        node.states[editor.state] = node.states[editor.state] ?? {};
+        return node.states[editor.state];
+      }
+      if (editor.breakpoint !== "base") {
+        node.responsive = node.responsive ?? {};
+        node.responsive[editor.breakpoint] = node.responsive[editor.breakpoint] ?? {};
+        return node.responsive[editor.breakpoint];
+      }
+      return node.props;
+    },
+
+    /** What the selected breakpoint and state actually resolve to. */
+    effectiveProps(node) {
+      return layeredProps(node, getDef(node.type), { breakpoint: editor.breakpoint, state: editor.state });
+    },
+
+    /** Which layer a prop's current value comes from. */
+    originOf(node, key) {
+      return propOrigin(node, key, { breakpoint: editor.breakpoint, state: editor.state });
+    },
+
     patchProps(id, patch, { silent = false } = {}) {
       const node = findNode(editor.screen.root, id);
       if (!node || readOnly) return;
-      node.props = { ...node.props, ...patch };
+      Object.assign(editor.writeLayer(node), patch);
       if (silent) {
         canvas.render();
       } else {
@@ -188,7 +227,26 @@ export function mount(host, { db, go, setCrumbs, params, app }) {
     setProps(id, props) {
       const node = findNode(editor.screen.root, id);
       if (!node || readOnly) return;
-      node.props = props;
+      if (editor.breakpoint === "base" && editor.state === "default") node.props = props;
+      else Object.assign(editor.writeLayer(node), props);
+    },
+
+    /** Drop an override so the prop inherits again. */
+    clearOverride(id, key) {
+      const node = findNode(editor.screen.root, id);
+      if (!node || readOnly) return;
+
+      if (editor.state !== "default") delete node.states?.[editor.state]?.[key];
+      else if (editor.breakpoint !== "base") delete node.responsive?.[editor.breakpoint]?.[key];
+      else return;
+
+      // Do not leave empty layers behind; they would show up in diffs as noise.
+      if (node.states?.[editor.state] && !Object.keys(node.states[editor.state]).length) delete node.states[editor.state];
+      if (node.states && !Object.keys(node.states).length) delete node.states;
+      if (node.responsive?.[editor.breakpoint] && !Object.keys(node.responsive[editor.breakpoint]).length) delete node.responsive[editor.breakpoint];
+      if (node.responsive && !Object.keys(node.responsive).length) delete node.responsive;
+
+      editor.commit("Clear override");
     },
 
     setActions(id, actions) {
@@ -405,7 +463,12 @@ export function mount(host, { db, go, setCrumbs, params, app }) {
       const styleKeys = Object.entries(def?.fields ?? {})
         .filter(([, spec]) => ["Appearance", "Spacing", "Typography", "Size"].includes(spec.group))
         .map(([key]) => key);
-      editor.styleClipboard = Object.fromEntries(styleKeys.filter((k) => k in node.props).map((k) => [k, clone(node.props[k])]));
+      // Copy what is on screen, which at a non-base breakpoint means the
+      // resolved value rather than the base one.
+      const effective = editor.effectiveProps(node);
+      editor.styleClipboard = Object.fromEntries(
+        styleKeys.filter((k) => k in effective).map((k) => [k, clone(effective[k])]),
+      );
       toast(`Copied ${fmt.plural(Object.keys(editor.styleClipboard).length, "style property")}`, { tone: "info", duration: 1800 });
       inspector.render();
     },
@@ -419,8 +482,9 @@ export function mount(host, { db, go, setCrumbs, params, app }) {
         const def = getDef(node?.type);
         if (!node || !def) continue;
         const declared = new Set(Object.keys(def.fields ?? {}));
+        const target = editor.writeLayer(node);
         for (const [key, value] of Object.entries(editor.styleClipboard)) {
-          if (declared.has(key)) node.props[key] = clone(value);
+          if (declared.has(key)) target[key] = clone(value);
         }
         count += 1;
       }
@@ -447,13 +511,33 @@ export function mount(host, { db, go, setCrumbs, params, app }) {
                   editor.savedBlocks = [...editor.savedBlocks, { key: uid("blk"), name, tree: clone(node) }];
                   persist.write("studio.blocks", editor.savedBlocks);
                   close();
-                  toast(`"${name}" saved as a block`, { tone: "success" });
+                  inspector.setPanel("insert");
+                  toast(`"${name}" saved as a block`, {
+                    tone: "success",
+                    detail: "It is at the top of the Insert panel under Saved blocks.",
+                  });
                 },
               },
               "Save block",
             ),
           ],
         };
+      });
+    },
+
+    removeSavedBlock(key) {
+      const block = editor.savedBlocks.find((b) => b.key === key);
+      editor.savedBlocks = editor.savedBlocks.filter((b) => b.key !== key);
+      persist.write("studio.blocks", editor.savedBlocks);
+      inspector.render();
+      toast(`Forgot "${block?.name ?? "block"}"`, {
+        tone: "info",
+        undo: () => {
+          if (!block) return;
+          editor.savedBlocks = [...editor.savedBlocks, block];
+          persist.write("studio.blocks", editor.savedBlocks);
+          inspector.render();
+        },
       });
     },
 

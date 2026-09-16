@@ -661,15 +661,18 @@ export const stylePresetGroups = [
 ];
 
 /**
- * Apply a style preset to a props object, keeping only the keys the component
- * actually declares. Returns a new props object.
+ * The subset of a preset a given component can actually take.
+ *
+ * This returns a patch, not a merged props object, because the editor may be
+ * writing into a breakpoint or state override — where writing back every prop
+ * would turn the whole component into an override of itself.
  */
-export function applyStylePreset(props, presetProps, declaredKeys) {
-  const next = { ...props };
+export function stylePresetPatch(presetProps, declaredKeys) {
+  const patch = {};
   for (const [key, value] of Object.entries(presetProps)) {
-    if (!declaredKeys || declaredKeys.has(key)) next[key] = structuredClone(value);
+    if (!declaredKeys || declaredKeys.has(key)) patch[key] = structuredClone(value);
   }
-  return next;
+  return patch;
 }
 
 /* ---------------------------------------------------------------------------

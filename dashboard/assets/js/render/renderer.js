@@ -17,6 +17,61 @@ import { getDef, resolveToken } from "../data/registry.js";
 
 export const LIMITS = { depth: 20, nodes: 500 };
 
+/**
+ * Breakpoints, narrowest first. A wider breakpoint inherits every value the
+ * narrower ones set, so an override only has to carry what actually differs.
+ */
+export const BREAKPOINTS = [
+  { key: "base", label: "Base", glyph: "smartphone", hint: "All sizes" },
+  { key: "md", label: "Tablet", glyph: "tablet", hint: "768px and up" },
+  { key: "lg", label: "Desktop", glyph: "monitor", hint: "1024px and up" },
+];
+
+/**
+ * Merge a node's prop layers into the values to render.
+ *
+ *   registry defaults → node.props → responsive[base…active] → states[active]
+ *
+ * Both the renderer and the inspector go through this, so what the canvas
+ * draws and what the Style panel reports can never disagree.
+ */
+export function layeredProps(node, def, { breakpoint = "base", state = "default" } = {}) {
+  let props = { ...(def?.props ?? {}), ...(node.props ?? {}) };
+
+  if (breakpoint && breakpoint !== "base") {
+    const upTo = BREAKPOINTS.findIndex((b) => b.key === breakpoint);
+    for (let i = 1; i <= upTo; i += 1) {
+      const layer = node.responsive?.[BREAKPOINTS[i].key];
+      if (layer) props = { ...props, ...layer };
+    }
+  }
+
+  if (state && state !== "default") {
+    const layer = node.states?.[state];
+    if (layer) props = { ...props, ...layer };
+  }
+
+  return props;
+}
+
+/**
+ * Where a given prop's value actually comes from, for the inspector's
+ * inherited-versus-overridden marker.
+ */
+export function propOrigin(node, key, { breakpoint = "base", state = "default" } = {}) {
+  if (state !== "default" && node.states?.[state] && key in node.states[state]) return "state";
+  if (breakpoint !== "base" && node.responsive?.[breakpoint] && key in node.responsive[breakpoint]) return "breakpoint";
+
+  if (breakpoint !== "base") {
+    const upTo = BREAKPOINTS.findIndex((b) => b.key === breakpoint);
+    for (let i = upTo - 1; i >= 1; i -= 1) {
+      if (node.responsive?.[BREAKPOINTS[i].key] && key in node.responsive[BREAKPOINTS[i].key]) return "inherited-breakpoint";
+    }
+  }
+
+  return "base";
+}
+
 const warned = new Set();
 
 function warnOnce(key, message) {
@@ -179,7 +234,7 @@ export function renderNode(node, ctx, depth = 0) {
     return ctx.editable ? unknownMarker(node, ctx) : null;
   }
 
-  const props = resolveProps({ ...def.props, ...node.props }, ctx);
+  const props = resolveProps(layeredProps(node, def, ctx), ctx);
 
   let children = [];
   if (def.acceptsChildren && Array.isArray(node.children)) {
@@ -254,7 +309,7 @@ function errorMarker(node, ctx, error) {
  */
 export function renderScreen(screen, ctx) {
   const budget = { count: 0 };
-  const scoped = { ...ctx, budget };
+  const scoped = { breakpoint: "base", state: "default", ...ctx, budget };
 
   const host = el("div", {
     dataset: { screenId: screen?.id ?? "" },

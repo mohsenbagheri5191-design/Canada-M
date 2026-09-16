@@ -703,8 +703,13 @@ export function diffDocuments(before, after) {
     if (old.parentId !== entry.parentId || old.index !== entry.index) {
       changes.push({ kind: "moved", label: nameOf(entry.node), where: entry.screen });
     }
-    if (JSON.stringify(old.node.props) !== JSON.stringify(entry.node.props)) {
-      const keys = changedKeys(old.node.props, entry.node.props);
+    // Compare every style layer, not just the base: a change made at a
+    // breakpoint or in a hover state is still a change worth reviewing.
+    const styleOf = (n) => ({ ...n.props, __responsive: n.responsive ?? null, __states: n.states ?? null });
+    if (JSON.stringify(styleOf(old.node)) !== JSON.stringify(styleOf(entry.node))) {
+      const keys = changedKeys(styleOf(old.node), styleOf(entry.node)).map((k) =>
+        k === "__responsive" ? "responsive" : k === "__states" ? "states" : k,
+      );
       changes.push({ kind: "restyled", label: `${nameOf(entry.node)} · ${keys.slice(0, 3).join(", ")}${keys.length > 3 ? ` +${keys.length - 3}` : ""}`, where: entry.screen });
     }
   }

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-density="comfortable">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>CanadaServices · Admin &amp; Design</title>
+<meta name="description" content="Desktop control surface for designs, users, assignments, app data, features and automations.">
+
+<!--
+  A desktop-only admin and design dashboard.
+
+  No build step, no bundler, no dependency to install: native ES modules and
+  modern CSS, served as static assets, matching how the rest of this
+  repository ships. Open this file over any static server and it runs.
+
+    assets/css   tokens first, then base, components, shell, tabs, studio
+    assets/js    core/ primitives, data/ the adapter + registry + presets,
+                 render/ the shared renderer, tabs/ one module per tab,
+                 studio/ the canvas, layers, inspector and theme editor
+-->
+
+<!--
+  No webfont request. The token file names Inter first and falls back through
+  the system UI stack, so the dashboard renders identically offline, behind a
+  proxy, or on an air-gapped machine. Drop an Inter @font-face in here if you
+  want it guaranteed.
+-->
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="stylesheet" href="assets/css/components.css">
+<link rel="stylesheet" href="assets/css/shell.css">
+<link rel="stylesheet" href="assets/css/tabs.css">
+<link rel="stylesheet" href="assets/css/studio.css">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='6' fill='%2300e5c0'/><path d='M12 5.5 13.7 10 18 11.8 13.7 13.6 12 18 10.3 13.6 6 11.8 10.3 10Z' fill='%23041210'/></svg>">
+</head>
+<body>
+
+<!-- The shell mounts here. -->
+<div id="app"></div>
+
+<!-- Below 1100px this is not a usable tool, and it says so plainly. -->
+<div id="too-small">
+  <span class="rail-mark">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.5 4.5h15A1.5 1.5 0 0 1 21 6v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 15V6a1.5 1.5 0 0 1 1.5-1.5Z"/>
+      <path d="M8.5 20.5h7M12 16.5v4"/>
+    </svg>
+  </span>
+  <h1>Open this on a desktop</h1>
+  <p class="prose" style="text-align:center">
+    The design canvas, layer tree and inspector need at least 1280&nbsp;pixels of
+    width to be worth using. This window is narrower than 1100.
+  </p>
+</div>
+
+<div id="toasts"></div>
+
+<script type="module" src="assets/js/main.js"></script>
+</body>
+</html>

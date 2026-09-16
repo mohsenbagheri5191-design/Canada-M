@@ -1,0 +1,580 @@
+/* ===========================================================================
+   Application shell: rail, top bar, page frame, command palette.
+   =========================================================================== */
+
+#app {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* ---------------------------------------------------------------------------
+   Left rail
+   --------------------------------------------------------------------------- */
+.rail {
+  display: flex;
+  flex-direction: column;
+  width: var(--rail-w);
+  background: var(--bg-sunken);
+  border-right: 1px solid var(--line);
+  z-index: var(--z-rail);
+  transition: width var(--t-panel) var(--ease);
+}
+
+.rail[data-expanded="true"] {
+  width: 188px;
+}
+
+.rail-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: var(--topbar-h);
+  padding: 0 14px;
+  flex: none;
+  border-bottom: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.rail-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: linear-gradient(150deg, var(--accent), var(--accent-press));
+  color: var(--accent-ink);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.06) inset;
+}
+
+.rail-mark svg {
+  width: 15px;
+  height: 15px;
+}
+
+.rail-brand > .rail-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition:
+    opacity var(--t-base) var(--ease),
+    transform var(--t-base) var(--ease);
+  white-space: nowrap;
+}
+
+.rail[data-expanded="true"] .rail-brand > .rail-name {
+  opacity: 1;
+  transform: none;
+}
+
+.rail-brand .rail-name b {
+  font-size: var(--fs-12);
+  font-weight: var(--fw-semibold);
+  line-height: 1.25;
+}
+
+.rail-brand .rail-name small {
+  font-size: var(--fs-11);
+  color: var(--text-tertiary);
+  line-height: 1.25;
+}
+
+.rail-nav {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s-2) 10px;
+  overflow: hidden auto;
+}
+
+.rail-group-label {
+  padding: var(--s-3) var(--s-2) var(--s-1);
+  font-size: var(--fs-11);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity var(--t-base) var(--ease);
+}
+
+.rail[data-expanded="true"] .rail-group-label {
+  opacity: 1;
+}
+
+.rail[data-expanded="false"] .rail-group-label {
+  height: var(--s-3);
+  padding: 0;
+  overflow: hidden;
+}
+
+.rail-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--control-h-lg);
+  padding: 0 7px;
+  border-radius: var(--r-control);
+  color: var(--text-tertiary);
+  font-size: var(--fs-12);
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+  transition:
+    background-color var(--t-fast) var(--ease),
+    color var(--t-fast) var(--ease);
+}
+
+.rail-item > svg {
+  width: 17px;
+  height: 17px;
+  flex: none;
+}
+
+.rail-item > span {
+  opacity: 0;
+  transform: translateX(-4px);
+  transition:
+    opacity var(--t-base) var(--ease),
+    transform var(--t-base) var(--ease);
+}
+
+.rail[data-expanded="true"] .rail-item > span {
+  opacity: 1;
+  transform: none;
+}
+
+.rail-item:hover {
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+}
+
+.rail-item.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* The active marker: a 2px bar flush to the rail edge. */
+.rail-item.active::before {
+  content: "";
+  position: absolute;
+  left: -10px;
+  top: 50%;
+  width: 2px;
+  height: 16px;
+  border-radius: 0 2px 2px 0;
+  background: var(--accent);
+  transform: translateY(-50%);
+  animation: fade-in var(--t-base) var(--ease);
+}
+
+.rail-item > .rail-badge {
+  margin-left: auto;
+  padding: 0 5px;
+  height: 15px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-pill);
+  background: var(--surface-active);
+  color: var(--text-tertiary);
+  font-size: var(--fs-11);
+  opacity: 0;
+  transition: opacity var(--t-base) var(--ease);
+}
+
+.rail[data-expanded="true"] .rail-item > .rail-badge {
+  opacity: 1;
+}
+
+.rail-foot {
+  flex: none;
+  padding: var(--s-2) 10px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rail-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--control-h-lg);
+  padding: 0 7px;
+  border-radius: var(--r-control);
+  transition: background-color var(--t-fast) var(--ease);
+  overflow: hidden;
+}
+
+.rail-user:hover {
+  background: var(--surface-hover);
+}
+
+.rail-user > .col {
+  min-width: 0;
+  opacity: 0;
+  transition: opacity var(--t-base) var(--ease);
+}
+
+.rail[data-expanded="true"] .rail-user > .col {
+  opacity: 1;
+}
+
+.rail-user b {
+  font-size: var(--fs-12);
+  font-weight: var(--fw-medium);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.rail-user small {
+  font-size: var(--fs-11);
+  color: var(--text-tertiary);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------------
+   Main column
+   --------------------------------------------------------------------------- */
+.main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--bg);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: var(--topbar-h);
+  flex: none;
+  padding: 0 var(--s-3);
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  font-size: var(--fs-12);
+  min-width: 0;
+}
+
+.crumbs > .crumb {
+  color: var(--text-tertiary);
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color var(--t-fast) var(--ease);
+}
+
+.crumbs > button.crumb:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.crumbs > .crumb.current {
+  color: var(--text);
+  font-weight: var(--fw-medium);
+}
+
+.crumbs > .sep {
+  color: var(--text-disabled);
+}
+
+/* Organisation switcher */
+.org-switch {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: var(--control-h);
+  padding: 0 var(--s-2);
+  border-radius: var(--r-control);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: var(--fs-12);
+  max-width: 220px;
+  transition: border-color var(--t-fast) var(--ease);
+}
+
+.org-switch:hover {
+  border-color: var(--line-strong);
+}
+
+.org-switch > .org-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: hsl(var(--hue, 160) 45% 30%);
+  color: hsl(var(--hue, 160) 72% 86%);
+  font-size: 9px;
+  font-weight: var(--fw-bold);
+}
+
+[data-theme="light"] .org-switch > .org-mark {
+  background: hsl(var(--hue, 160) 60% 90%);
+  color: hsl(var(--hue, 160) 56% 28%);
+}
+
+.org-switch > svg {
+  width: 12px;
+  height: 12px;
+  color: var(--text-tertiary);
+}
+
+/* Global search trigger */
+.search-trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 240px;
+  height: var(--control-h);
+  padding: 0 var(--s-2);
+  border-radius: var(--r-control);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-tertiary);
+  font-size: var(--fs-12);
+  transition:
+    border-color var(--t-fast) var(--ease),
+    color var(--t-fast) var(--ease);
+}
+
+.search-trigger:hover {
+  border-color: var(--line-strong);
+  color: var(--text-secondary);
+}
+
+.search-trigger > svg {
+  width: 13px;
+  height: 13px;
+}
+
+.search-trigger > .spacer + kbd {
+  flex: none;
+}
+
+/* Page frame */
+.page {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Scrolling content region used by every tab except the studio. */
+.page-scroll {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: var(--s-5) var(--s-5) var(--s-12);
+  display: flex;
+  flex-direction: column;
+  gap: var(--section-gap);
+}
+
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-4);
+  flex: none;
+}
+
+.page-head h1 {
+  font-size: var(--fs-20);
+}
+
+.page-head .sub {
+  margin-top: 2px;
+  font-size: var(--fs-12);
+  color: var(--text-tertiary);
+}
+
+/* A sticky sub-toolbar under the topbar, for filters. */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex: none;
+  height: var(--control-h-lg);
+  padding: 0 var(--s-5);
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.toolbar.tight {
+  padding: 0 var(--s-3);
+}
+
+.vr {
+  width: 1px;
+  height: 16px;
+  background: var(--line);
+  flex: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Command palette
+   --------------------------------------------------------------------------- */
+.palette-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-palette);
+  display: flex;
+  justify-content: center;
+  padding-top: 14vh;
+  background: var(--scrim);
+  backdrop-filter: blur(4px);
+  animation: fade-in var(--t-fast) var(--ease);
+}
+
+.palette {
+  width: min(600px, calc(100vw - 48px));
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-overlay);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  box-shadow: var(--shadow-modal);
+  overflow: hidden;
+  animation: rise-in var(--t-slow) var(--ease-out);
+}
+
+.palette-input {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex: none;
+  height: 46px;
+  padding: 0 var(--s-4);
+  border-bottom: 1px solid var(--line);
+}
+
+.palette-input > svg {
+  width: 15px;
+  height: 15px;
+  color: var(--text-tertiary);
+}
+
+.palette-input > input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: none;
+  border: 0;
+  color: var(--text);
+  font-size: var(--fs-14);
+}
+
+.palette-input > input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.palette-list {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: var(--s-1);
+}
+
+.palette-list .menu-item {
+  height: 36px;
+}
+
+.palette-list .menu-item .hint {
+  margin-left: auto;
+  font-size: var(--fs-11);
+  color: var(--text-tertiary);
+}
+
+.palette-foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  font-size: var(--fs-11);
+  color: var(--text-tertiary);
+}
+
+.palette-foot .row {
+  gap: var(--s-1);
+}
+
+/* ---------------------------------------------------------------------------
+   Shortcut sheet
+   --------------------------------------------------------------------------- */
+.shortcut-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-5) var(--s-8);
+}
+
+.shortcut-grid h3 {
+  margin-bottom: var(--s-2);
+  color: var(--text-tertiary);
+  font-size: var(--fs-11);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: 26px;
+  font-size: var(--fs-12);
+  color: var(--text-secondary);
+}
+
+.shortcut-row > .keys {
+  margin-left: auto;
+  display: flex;
+  gap: 3px;
+}
+
+/* ---------------------------------------------------------------------------
+   Viewport guard. The dashboard is desktop-only and says so.
+   --------------------------------------------------------------------------- */
+#too-small {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  #app {
+    display: none;
+  }
+
+  #too-small {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-3);
+    height: 100vh;
+    padding: var(--s-8);
+    text-align: center;
+  }
+
+  #too-small .rail-mark {
+    width: 36px;
+    height: 36px;
+  }
+
+  #too-small .rail-mark svg {
+    width: 20px;
+    height: 20px;
+  }
+}

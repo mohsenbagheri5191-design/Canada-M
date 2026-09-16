@@ -1,0 +1,240 @@
+/* ===========================================================================
+   Design tokens.
+   Every colour, size, duration and easing in the dashboard resolves to a
+   variable declared here. Nothing downstream hard-codes a hex value.
+
+   Two axes vary at runtime:
+     [data-theme]   dark (default) | light
+     [data-density] comfortable (default) | compact
+   Both are written to <html> so a single attribute flip restyles the product.
+   =========================================================================== */
+
+:root {
+  /* --- Accent -------------------------------------------------------------
+     Exactly one. Primary action, active state, selection. Nothing else.
+     Jade-cyan reads as a tool rather than a template, and stays clear of the
+     semantic greens and ambers below. */
+  --accent: #00e5c0;
+  --accent-hover: #3dedd0;
+  --accent-press: #00c9a9;
+  --accent-ink: #04120f; /* text drawn on top of --accent */
+  --accent-soft: rgb(0 229 192 / 0.14);
+  --accent-softer: rgb(0 229 192 / 0.07);
+  --accent-line: rgb(0 229 192 / 0.38);
+  --accent-glow: rgb(0 229 192 / 0.22);
+
+  /* --- Semantics ----------------------------------------------------------
+     Used only where they carry meaning. Never decoratively. */
+  --success: #4ade80;
+  --success-soft: rgb(74 222 128 / 0.13);
+  --warning: #fbbf40;
+  --warning-soft: rgb(251 191 64 / 0.13);
+  --danger: #ff5c5c;
+  --danger-soft: rgb(255 92 92 / 0.13);
+  --info: #60a5fa;
+  --info-soft: rgb(96 165 250 / 0.13);
+
+  /* --- Type ---------------------------------------------------------------
+     Body is 13px. The scale is deliberately short: seven sizes, no more. */
+  --font-sans: "InterVariable", "Inter", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", ui-monospace, "Menlo",
+    "Consolas", monospace;
+
+  --fs-11: 11px;
+  --fs-12: 12px;
+  --fs-13: 13px;
+  --fs-14: 14px;
+  --fs-16: 16px;
+  --fs-20: 20px;
+  --fs-28: 28px;
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 590;
+  --fw-bold: 680;
+
+  --lh-tight: 1.2;
+  --lh-snug: 1.35;
+  --lh-normal: 1.55;
+
+  --tracking-tight: -0.014em;
+  --tracking-normal: -0.006em;
+  --tracking-wide: 0.06em;
+
+  /* --- Space --- 4px base grid, no exceptions ----------------------------- */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10: 40px;
+  --s-12: 48px;
+  --s-16: 64px;
+
+  --panel-pad: var(--s-4);
+  --section-gap: var(--s-6);
+
+  /* --- Radius --- three steps, never mixed -------------------------------- */
+  --r-control: 6px;
+  --r-panel: 10px;
+  --r-pill: 999px;
+
+  /* --- Density ------------------------------------------------------------
+     Overridden wholesale by [data-density="compact"] further down. */
+  --row-h: 32px;
+  --control-h: 28px;
+  --control-h-sm: 22px;
+  --control-h-lg: 34px;
+  --rail-w: 60px;
+  --topbar-h: 48px;
+
+  /* --- Motion -------------------------------------------------------------
+     120-180ms. Transform and opacity only. No bounce, ever. */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --t-fast: 120ms;
+  --t-base: 150ms;
+  --t-slow: 180ms;
+  --t-panel: 220ms;
+
+  /* --- Layering ------------------------------------------------------------ */
+  --z-canvas: 1;
+  --z-sticky: 20;
+  --z-rail: 40;
+  --z-popover: 60;
+  --z-drawer: 70;
+  --z-modal: 80;
+  --z-toast: 90;
+  --z-palette: 100;
+  --z-drag: 110;
+}
+
+/* ---------------------------------------------------------------------------
+   Dark surface set. The default.
+   Depth is carried by hairline borders and one soft shadow. Not by stacked
+   drop shadows, which read as a template.
+   --------------------------------------------------------------------------- */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #0a0a0b;
+  --bg-sunken: #060607;
+  --surface: #141416;
+  --surface-raised: #1a1a1d;
+  --surface-overlay: #1e1e22;
+  --surface-hover: rgb(255 255 255 / 0.038);
+  --surface-active: rgb(255 255 255 / 0.065);
+  --surface-selected: var(--accent-softer);
+
+  --line: rgb(255 255 255 / 0.08);
+  --line-strong: rgb(255 255 255 / 0.14);
+  --line-faint: rgb(255 255 255 / 0.045);
+
+  --text: #f2f2f3;
+  --text-secondary: #a4a4ad;
+  --text-tertiary: #71717c;
+  --text-disabled: #4b4b54;
+  --text-inverse: #0a0a0b;
+
+  --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-popover: 0 8px 28px -6px rgb(0 0 0 / 0.66), 0 2px 6px rgb(0 0 0 / 0.4);
+  --shadow-modal: 0 24px 64px -12px rgb(0 0 0 / 0.78), 0 2px 8px rgb(0 0 0 / 0.5);
+  --shadow-drag: 0 12px 32px -8px rgb(0 0 0 / 0.7);
+
+  --scrim: rgb(4 4 6 / 0.62);
+  --canvas-bg: #08080a;
+  --canvas-grid: rgb(255 255 255 / 0.028);
+  --swatch-checker: rgb(255 255 255 / 0.06);
+}
+
+/* ---------------------------------------------------------------------------
+   Light surface set. A real light mode, not an inversion.
+   --------------------------------------------------------------------------- */
+[data-theme="light"] {
+  color-scheme: light;
+
+  --accent: #00a88c;
+  --accent-hover: #00bd9d;
+  --accent-press: #008e76;
+  --accent-ink: #ffffff;
+  --accent-soft: rgb(0 168 140 / 0.11);
+  --accent-softer: rgb(0 168 140 / 0.055);
+  --accent-line: rgb(0 168 140 / 0.4);
+  --accent-glow: rgb(0 168 140 / 0.18);
+
+  --success: #15a14a;
+  --success-soft: rgb(21 161 74 / 0.1);
+  --warning: #b07500;
+  --warning-soft: rgb(176 117 0 / 0.1);
+  --danger: #d93838;
+  --danger-soft: rgb(217 56 56 / 0.09);
+  --info: #2563eb;
+  --info-soft: rgb(37 99 235 / 0.09);
+
+  --bg: #fbfbfc;
+  --bg-sunken: #f2f2f4;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-overlay: #ffffff;
+  --surface-hover: rgb(10 10 15 / 0.035);
+  --surface-active: rgb(10 10 15 / 0.06);
+  --surface-selected: var(--accent-softer);
+
+  --line: rgb(10 10 25 / 0.1);
+  --line-strong: rgb(10 10 25 / 0.17);
+  --line-faint: rgb(10 10 25 / 0.055);
+
+  --text: #16161a;
+  --text-secondary: #5c5c66;
+  --text-tertiary: #8b8b96;
+  --text-disabled: #b4b4bd;
+  --text-inverse: #ffffff;
+
+  --shadow-panel: 0 1px 2px rgb(16 18 30 / 0.05);
+  --shadow-popover: 0 8px 28px -6px rgb(16 18 30 / 0.14), 0 2px 6px rgb(16 18 30 / 0.07);
+  --shadow-modal: 0 24px 64px -12px rgb(16 18 30 / 0.2), 0 2px 8px rgb(16 18 30 / 0.08);
+  --shadow-drag: 0 12px 32px -8px rgb(16 18 30 / 0.2);
+
+  --scrim: rgb(24 24 32 / 0.34);
+  --canvas-bg: #eeeef1;
+  --canvas-grid: rgb(10 10 25 / 0.035);
+  --swatch-checker: rgb(10 10 25 / 0.07);
+}
+
+/* ---------------------------------------------------------------------------
+   Compact density. One attribute, applied globally.
+   --------------------------------------------------------------------------- */
+[data-density="compact"] {
+  --row-h: 26px;
+  --control-h: 24px;
+  --control-h-sm: 20px;
+  --control-h-lg: 28px;
+  --panel-pad: var(--s-3);
+  --section-gap: var(--s-4);
+  --topbar-h: 42px;
+}
+
+/* ---------------------------------------------------------------------------
+   Reduced motion. Transitions collapse; nothing animates position.
+   --------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-fast: 1ms;
+    --t-base: 1ms;
+    --t-slow: 1ms;
+    --t-panel: 1ms;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}

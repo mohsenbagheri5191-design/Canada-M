@@ -87,7 +87,11 @@ function seed() {
   const versions = [];
 
   const makeDesign = ({ id, org, name, description, status, versionCount, publishedIndex, screens, themeKey }) => {
-    const designTheme = themePresets.find((t) => t.key === themeKey)?.theme ?? themePresets[0].theme;
+    // A missing key used to fall through to preset zero, which made every
+    // seeded design look identical and hid the typo. Say so instead.
+    const preset = themePresets.find((t) => t.key === themeKey);
+    if (!preset) console.warn(`seed: unknown theme preset "${themeKey}" on ${id}`);
+    const designTheme = (preset ?? themePresets[0]).theme;
     designs.push({
       id,
       organization_id: org,
@@ -156,7 +160,7 @@ function seed() {
     versionCount: 4,
     publishedIndex: 3,
     screens: buildScreens(["home", "list", "detail", "form"]),
-    themeKey: "field-light",
+    themeKey: "graphite-flat",
   });
 
   makeDesign({
@@ -168,7 +172,7 @@ function seed() {
     versionCount: 4,
     publishedIndex: 4,
     screens: buildScreens(["list", "detail", "profile"]),
-    themeKey: "night-ops",
+    themeKey: "carbon-flat",
   });
 
   makeDesign({
@@ -180,7 +184,7 @@ function seed() {
     versionCount: 3,
     publishedIndex: 3,
     screens: buildScreens(["form", "success", "home"]),
-    themeKey: "slate",
+    themeKey: "slate-glass",
   });
 
   makeDesign({
@@ -192,7 +196,7 @@ function seed() {
     versionCount: 2,
     publishedIndex: 2,
     screens: buildScreens(["detail", "list", "home"]),
-    themeKey: "maple",
+    themeKey: "amber-soft",
   });
 
   makeDesign({
@@ -204,7 +208,7 @@ function seed() {
     versionCount: 1,
     publishedIndex: 0,
     screens: buildScreens(["profile", "form"]),
-    themeKey: "midnight",
+    themeKey: "midnight-elevated",
   });
 
   makeDesign({
@@ -216,7 +220,7 @@ function seed() {
     versionCount: 1,
     publishedIndex: 1,
     screens: buildScreens(["empty", "detail"]),
-    themeKey: "high-contrast",
+    themeKey: "hc-light",
   });
 
   /* --- Routes ------------------------------------------------------------ */

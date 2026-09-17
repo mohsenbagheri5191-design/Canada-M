@@ -14,6 +14,7 @@
 
 import { el } from "../core/dom.js";
 import { getDef, resolveToken } from "../data/registry.js";
+import { createSurfaceResolver } from "../data/styles.js";
 
 export const LIMITS = { depth: 20, nodes: 500 };
 
@@ -309,7 +310,17 @@ function errorMarker(node, ctx, error) {
  */
 export function renderScreen(screen, ctx) {
   const budget = { count: 0 };
-  const scoped = { breakpoint: "base", state: "default", ...ctx, budget };
+
+  // Every component asks the theme's style for its surfaces rather than
+  // hard-coding a shadow or a border, so switching style restyles the whole
+  // design at once instead of one component at a time.
+  const scoped = {
+    breakpoint: "base",
+    state: "default",
+    ...ctx,
+    budget,
+    surface: ctx.surface ?? createSurfaceResolver(ctx.theme),
+  };
 
   const host = el("div", {
     dataset: { screenId: screen?.id ?? "" },

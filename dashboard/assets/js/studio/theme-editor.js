@@ -9,7 +9,7 @@
 
 import { el, mount } from "../core/dom.js";
 import { icon } from "../core/icons.js";
-import { themePresets } from "../data/presets.js";
+import { themePresets, appStyles, appPalettes, createSurfaceResolver } from "../data/presets.js";
 import { ramp, contrastGrade, inkFor, fmt } from "../core/util.js";
 import { modal, section, fieldRow, colorField, numberField, toast, segmented, searchField } from "../core/ui.js";
 import { renderScreen } from "../render/renderer.js";
@@ -129,6 +129,88 @@ export function openThemeEditor(editor) {
                 ...["background", "surface", "primary", "text", "success", "warning", "danger"].map((key) =>
                   el("span", { style: { background: preset.theme.colors[key] } }),
                 ),
+              ),
+            ),
+          ),
+        ),
+        { open: true },
+      ),
+
+      section(
+        "Visual style",
+        el(
+          "div.col",
+          { style: { gap: "var(--s-2)" } },
+          el("span.hint", "What a surface feels like, independent of its colours. Changing this reshapes every card, input, button and row in the design at once."),
+          el(
+            "div",
+            { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--s-2)" } },
+            ...appStyles.map((style) =>
+              el(
+                "button",
+                {
+                  type: "button",
+                  class: `theme-card${working.style === style.key ? " active" : ""}`,
+                  "data-tip": style.description,
+                  "data-tip-place": "right-start",
+                  onclick: () => {
+                    working.style = style.key;
+                    repaintControls();
+                    repaintPreview();
+                  },
+                },
+                // A live miniature of the style applied to the working palette,
+                // which is the only honest way to show what it does.
+                stylePreview(style.key, working),
+                el("b", { style: { fontSize: "var(--fs-11)" } }, style.name),
+              ),
+            ),
+          ),
+        ),
+        { open: true },
+      ),
+
+      section(
+        "Palette",
+        el(
+          "div.col",
+          { style: { gap: "var(--s-3)" } },
+          ...[...new Set(appPalettes.map((p) => p.group))].map((group) =>
+            el(
+              "div.col",
+              { style: { gap: "5px" } },
+              el("span.field-label", group),
+              el(
+                "div.preset-row",
+                ...appPalettes
+                  .filter((p) => p.group === group)
+                  .map((palette) =>
+                    el(
+                      "button",
+                      {
+                        type: "button",
+                        class: `preset-chip${working.palette === palette.key ? " active" : ""}`,
+                        onclick: () => {
+                          working.palette = palette.key;
+                          working.colors = { ...palette.colors };
+                          seedHex = palette.colors.primary;
+                          repaintControls();
+                          repaintPreview();
+                        },
+                      },
+                      el("span", {
+                        style: {
+                          width: "9px",
+                          height: "9px",
+                          borderRadius: "999px",
+                          background: palette.colors.primary,
+                          boxShadow: `0 0 0 1px ${palette.colors.border}`,
+                          flex: "none",
+                        },
+                      }),
+                      palette.name,
+                    ),
+                  ),
               ),
             ),
           ),
@@ -301,6 +383,43 @@ export function openThemeEditor(editor) {
       ],
     }),
     { width: "xwide" },
+  );
+}
+
+/**
+ * A three-element sample of a style: a raised card, an inset well and a tinted
+ * control. Enough to tell Neumorphic from Brutalist at a glance, which a name
+ * and a description alone cannot do.
+ */
+function stylePreview(styleKey, theme) {
+  const surface = createSurfaceResolver({ ...theme, style: styleKey });
+  const c = theme.colors;
+
+  const chip = (level, tint) =>
+    el("span", {
+      style: {
+        display: "block",
+        flex: "1 1 0",
+        height: "22px",
+        ...surface(level, { radius: 8, tint }),
+      },
+    });
+
+  return el(
+    "span",
+    {
+      style: {
+        display: "flex",
+        gap: "6px",
+        padding: "8px",
+        borderRadius: "8px",
+        background: c.background,
+        marginBottom: "2px",
+      },
+    },
+    chip("raised", null),
+    chip("inset", null),
+    chip("control", c.primary),
   );
 }
 

@@ -676,176 +676,23 @@ export function stylePresetPatch(presetProps, declaredKeys) {
 }
 
 /* ---------------------------------------------------------------------------
-   Theme presets
+   Themes
+
+   Palettes, visual styles and their pairings now live in data/styles.js, so a
+   theme is a palette plus a style rather than one fixed blob. Re-exported here
+   because everything already imports them from this module.
    --------------------------------------------------------------------------- */
 
-const baseTypography = {
-  fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-  baseSize: 14,
-  scale: { caption: 12, body: 14, lead: 16, title: 20, display: 28 },
-};
+export {
+  themePresets,
+  defaultTheme,
+  appPalettes,
+  appStyles,
+  makeTheme,
+  getStyle,
+  createSurfaceResolver,
+} from "./styles.js";
 
-export const themePresets = [
-  {
-    key: "field-light",
-    name: "Field Light",
-    description: "High contrast for outdoor screens.",
-    theme: {
-      colors: {
-        background: "#f7f8f9",
-        surface: "#ffffff",
-        surfaceSunken: "#eef0f2",
-        border: "#dfe3e7",
-        text: "#101418",
-        textSecondary: "#4c555f",
-        textTertiary: "#7b858f",
-        primary: "#0b7a63",
-        primarySoft: "#e3f3ef",
-        onPrimary: "#ffffff",
-        success: "#1d8a4b",
-        warning: "#b4700a",
-        danger: "#c8372f",
-        info: "#1d6fd1",
-      },
-      typography: baseTypography,
-      radius: { control: 12, panel: 16, pill: 999 },
-      spacing: { base: 4, gap: 12, padding: 16 },
-    },
-  },
-  {
-    key: "night-ops",
-    name: "Night Ops",
-    description: "Dark, low glare, for evening routes.",
-    theme: {
-      colors: {
-        background: "#0c0f12",
-        surface: "#151a1f",
-        surfaceSunken: "#1d242b",
-        border: "#28313a",
-        text: "#eef2f5",
-        textSecondary: "#a2aeb9",
-        textTertiary: "#6f7d89",
-        primary: "#2fd9b3",
-        primarySoft: "#123029",
-        onPrimary: "#04140f",
-        success: "#48d17c",
-        warning: "#f0b247",
-        danger: "#f2645c",
-        info: "#5aa4f5",
-      },
-      typography: baseTypography,
-      radius: { control: 12, panel: 16, pill: 999 },
-      spacing: { base: 4, gap: 12, padding: 16 },
-    },
-  },
-  {
-    key: "maple",
-    name: "Maple",
-    description: "Warm, Canadian-service palette.",
-    theme: {
-      colors: {
-        background: "#fdfbf9",
-        surface: "#ffffff",
-        surfaceSunken: "#f4efeb",
-        border: "#e6ddd6",
-        text: "#1b1512",
-        textSecondary: "#5a4c45",
-        textTertiary: "#8d7c73",
-        primary: "#c0392b",
-        primarySoft: "#fbeae7",
-        onPrimary: "#ffffff",
-        success: "#2e7d4f",
-        warning: "#b8791c",
-        danger: "#a52921",
-        info: "#2a5fa8",
-      },
-      typography: baseTypography,
-      radius: { control: 10, panel: 14, pill: 999 },
-      spacing: { base: 4, gap: 12, padding: 16 },
-    },
-  },
-  {
-    key: "slate",
-    name: "Slate",
-    description: "Neutral and quiet; content carries the colour.",
-    theme: {
-      colors: {
-        background: "#fafafa",
-        surface: "#ffffff",
-        surfaceSunken: "#f0f0f1",
-        border: "#e2e2e4",
-        text: "#18181b",
-        textSecondary: "#52525b",
-        textTertiary: "#8a8a93",
-        primary: "#3f3f46",
-        primarySoft: "#ececee",
-        onPrimary: "#ffffff",
-        success: "#15803d",
-        warning: "#a16207",
-        danger: "#b91c1c",
-        info: "#1d4ed8",
-      },
-      typography: { ...baseTypography, fontFamily: "'IBM Plex Sans', Inter, system-ui, sans-serif" },
-      radius: { control: 8, panel: 12, pill: 999 },
-      spacing: { base: 4, gap: 10, padding: 14 },
-    },
-  },
-  {
-    key: "high-contrast",
-    name: "High contrast",
-    description: "Built to clear AA everywhere, including small text.",
-    theme: {
-      colors: {
-        background: "#ffffff",
-        surface: "#ffffff",
-        surfaceSunken: "#f0f0f0",
-        border: "#000000",
-        text: "#000000",
-        textSecondary: "#1f1f1f",
-        textTertiary: "#404040",
-        primary: "#00437a",
-        primarySoft: "#dceaf7",
-        onPrimary: "#ffffff",
-        success: "#0f6b2f",
-        warning: "#7a4a00",
-        danger: "#a30000",
-        info: "#00437a",
-      },
-      typography: { ...baseTypography, baseSize: 15 },
-      radius: { control: 6, panel: 8, pill: 999 },
-      spacing: { base: 4, gap: 12, padding: 16 },
-    },
-  },
-  {
-    key: "midnight",
-    name: "Midnight",
-    description: "Deep blue-black with a cool accent.",
-    theme: {
-      colors: {
-        background: "#080b14",
-        surface: "#111624",
-        surfaceSunken: "#19203312",
-        border: "#232b42",
-        text: "#eef1f8",
-        textSecondary: "#9aa3bd",
-        textTertiary: "#66708c",
-        primary: "#6d8dff",
-        primarySoft: "#18203c",
-        onPrimary: "#070a14",
-        success: "#41cf87",
-        warning: "#efb54d",
-        danger: "#ef6470",
-        info: "#6d8dff",
-      },
-      typography: baseTypography,
-      radius: { control: 14, panel: 18, pill: 999 },
-      spacing: { base: 4, gap: 14, padding: 18 },
-    },
-  },
-];
-
-/** The theme a brand-new design starts from. */
-export const defaultTheme = () => structuredClone(themePresets[0].theme);
 
 /* ---------------------------------------------------------------------------
    Device presets for the canvas

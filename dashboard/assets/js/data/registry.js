@@ -99,9 +99,34 @@ export const shadowCss = (key) => SHADOWS[key] ?? SHADOWS.none;
 
 export const shadowKeys = Object.keys(SHADOWS);
 
-/** Apply the props every component shares: box, spacing, size, appearance. */
-function applyBox(node, p, theme) {
+/**
+ * Apply the props every component shares: box, spacing, size, appearance.
+ *
+ * `level` asks the active visual style for a surface first — flat borders,
+ * soft neumorphic pairs, hard brutalist offsets, translucent glass — and the
+ * node's own props are layered on top afterwards.
+ *
+ * The subtlety is that a registry default is not an author's decision. Card
+ * defaults its background to the surface token, and if that were applied
+ * blindly it would overwrite whatever the style just computed, so switching
+ * style would change nothing. So an appearance prop only wins when it differs
+ * from the component's declared default, which is exactly when somebody
+ * actually chose it in the inspector.
+ */
+function applyBox(node, p, ctx, { level = null, type = null } = {}) {
   const s = node.style;
+  const theme = ctx?.theme ?? ctx; // tolerate the older (node, p, theme) call
+  const defaults = type ? registry[type]?.props ?? {} : {};
+  const authored = (key) => JSON.stringify(p[key]) !== JSON.stringify(defaults[key]);
+
+  if (level && typeof ctx?.surface === "function") {
+    Object.assign(s, ctx.surface(level, {
+      radius: p.radius,
+      tint: authored("background") && p.background && p.background !== "transparent"
+        ? resolveToken(p.background, theme)
+        : null,
+    }));
+  }
 
   if (p.padding) s.padding = spacingCss(p.padding);
   if (p.margin) s.margin = spacingCss(p.margin);
@@ -113,14 +138,19 @@ function applyBox(node, p, theme) {
   if (p.size?.minHeight) s.minHeight = `${p.size.minHeight}px`;
   if (p.size?.maxWidth) s.maxWidth = `${p.size.maxWidth}px`;
 
-  if (p.background && p.background !== "transparent") s.background = resolveToken(p.background, theme);
-  if (p.radius !== undefined) s.borderRadius = radiusCss(p.radius);
-  if (p.borderWidth) {
+  if (p.background && p.background !== "transparent" && (!level || authored("background"))) {
+    s.background = resolveToken(p.background, theme);
+  }
+  if (p.background === "transparent" && authored("background")) s.background = "transparent";
+
+  if (p.radius !== undefined && (!level || authored("radius"))) s.borderRadius = radiusCss(p.radius);
+
+  if (p.borderWidth && (!level || authored("borderWidth"))) {
     s.borderStyle = p.borderStyle || "solid";
     s.borderWidth = `${p.borderWidth}px`;
     s.borderColor = resolveToken(p.borderColor || theme.colors.border, theme);
   }
-  if (p.shadow && p.shadow !== "none") s.boxShadow = shadowCss(p.shadow);
+  if (p.shadow && p.shadow !== "none" && (!level || authored("shadow"))) s.boxShadow = shadowCss(p.shadow);
   if (p.opacity !== undefined && p.opacity !== 1) s.opacity = String(p.opacity);
   if (p.blur) s.backdropFilter = `blur(${p.blur}px)`;
 
@@ -280,7 +310,7 @@ export const registry = {
       s.justifyContent =
         { start: "flex-start", end: "flex-end", center: "center", "space-between": "space-between", "space-around": "space-around" }[p.justify] ?? "flex-start";
       if (p.wrap) s.flexWrap = "wrap";
-      applyBox(node, p, ctx.theme);
+      applyBox(node, p, ctx, { type: "Stack" });
       node.append(...children);
       return node;
     },
@@ -313,7 +343,7 @@ export const registry = {
       node.style.display = "grid";
       node.style.gridTemplateColumns = `repeat(${p.columns || 2}, minmax(0, 1fr))`;
       node.style.gap = `${p.gap ?? 0}px`;
-      applyBox(node, p, ctx.theme);
+      applyBox(node, p, ctx, { type: "Grid" });
       node.append(...children);
       return node;
     },
@@ -346,7 +376,7 @@ export const registry = {
       node.style.display = "flex";
       node.style.flexDirection = "column";
       node.style.gap = `${p.gap ?? 0}px`;
-      applyBox(node, p, ctx.theme);
+      applyBox(node, p, ctx, { level: "raised", type: "Card" });
       node.append(...children);
       return node;
     },
@@ -514,7 +544,7 @@ export const registry = {
       node.style.placeItems = "center";
       node.style.background = ctx.theme.colors.surfaceSunken;
       node.style.color = ctx.theme.colors.textTertiary;
-      applyBox(node, p, ctx.theme);
+      applyBox(node, p, ctx, { type: "Image" });
 
       if (p.src) {
         const img = el("img", { src: p.src, alt: p.alt || "" });
@@ -709,6 +739,13 @@ export const registry = {
         p.glyph && p.iconSide === "right" ? icon(p.glyph, Math.round((p.fontSize || 15) * 1.15)) : null,
       );
 
+      // A ghost button has no surface by definition; everything else is a
+      // raised control the style shapes, tinted by its variant.
+      const surface =
+        p.variant === "ghost"
+          ? { background: "transparent", border: "none", borderRadius: radiusCss(p.radius) }
+          : ctx.surface("control", { radius: p.radius, tint: v.background });
+
       Object.assign(node.style, {
         display: "inline-flex",
         alignItems: "center",
@@ -717,10 +754,8 @@ export const registry = {
         width: sizeCss(p.size, "width") || "auto",
         height: `${p.size?.height ?? 48}px`,
         padding: "0 18px",
-        borderRadius: radiusCss(p.radius),
-        background: v.background,
+        ...surface,
         color: v.color,
-        border: `1px solid ${v.border}`,
         fontSize: `${p.fontSize ?? 15}px`,
         fontWeight: String(p.fontWeight ?? 600),
         fontFamily: ctx.theme.typography.fontFamily,
@@ -799,10 +834,8 @@ export const registry = {
         Object.assign(chip.style, {
           flexShrink: "0",
           padding: "7px 14px",
-          borderRadius: radiusCss(p.radius),
-          background: active ? c.primary : c.surfaceSunken,
+          ...ctx.surface("control", { radius: p.radius, tint: active ? c.primary : null }),
           color: active ? c.onPrimary : c.textSecondary,
-          border: `1px solid ${active ? "transparent" : c.border}`,
           fontSize: "13px",
           fontWeight: active ? "600" : "500",
         });
@@ -879,7 +912,7 @@ export const registry = {
         height: `${p.size?.height ?? 56}px`,
         flexShrink: "0",
       });
-      applyBox(node, p, ctx.theme);
+      applyBox(node, p, ctx, { type: "Header" });
       return node;
     },
   },
@@ -993,7 +1026,7 @@ export const registry = {
         ),
       );
       node.style.textAlign = p.align || "left";
-      applyBox(node, p, ctx.theme);
+      applyBox(node, p, ctx, { level: "raised", type: "StatTile" });
       return node;
     },
   },
@@ -1071,9 +1104,9 @@ export const registry = {
           alignItems: "center",
           gap: "11px",
           padding: `${p.rowPadding ?? 12}px`,
-          borderRadius: radiusCss(p.radius),
-          background: resolveToken(p.background, ctx.theme),
-          border: p.borderWidth ? `${p.borderWidth}px solid ${resolveToken(p.borderColor, ctx.theme)}` : "none",
+          // The row is a raised surface, so a style change reshapes every row
+          // in every list at once.
+          ...ctx.surface("raised", { radius: p.radius }),
         });
         node.appendChild(row);
       }
@@ -1300,9 +1333,7 @@ export const registry = {
       const box = el("div", { style: { display: "flex", alignItems: "center", padding: "0 14px" } }, el("span", { style: { color: p.value ? c.text : c.textTertiary, fontSize: "14px" } }, String(p.value || p.placeholder || "")));
       Object.assign(box.style, {
         height: `${p.size?.height ?? 46}px`,
-        borderRadius: radiusCss(p.radius),
-        background: c.surfaceSunken,
-        border: `1px solid ${c.border}`,
+        ...ctx.surface("inset", { radius: p.radius }),
       });
 
       return el(
@@ -1356,9 +1387,7 @@ export const registry = {
         gap: "8px",
         height: `${p.size?.height ?? 46}px`,
         padding: "0 14px",
-        borderRadius: radiusCss(p.radius),
-        background: c.surfaceSunken,
-        border: `1px solid ${c.border}`,
+        ...ctx.surface("inset", { radius: p.radius }),
       });
 
       return el(

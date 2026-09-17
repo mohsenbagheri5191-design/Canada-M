@@ -758,7 +758,11 @@ export function createInspector(editor) {
       );
     }
 
-    if (spec.control === "spacing" || spec.control === "radius" || spec.control === "size" || spec.control === "textarea") {
+    // Controls taller than one line get the label above them. Squeezing a
+    // list of task rows into the 1fr half of an 84px/1fr grid leaves every
+    // input too narrow to read what is in it.
+    const WIDE = new Set(["spacing", "radius", "size", "textarea", "items", "chips"]);
+    if (WIDE.has(spec.control)) {
       return el("div.field-row.wide", labelNode(), control);
     }
 
@@ -1085,8 +1089,22 @@ export function createInspector(editor) {
   }
 
   /** Editor for list-shaped props: chips, list rows, tab labels. */
+  /**
+   * A `shape` entry is either a key name, edited as text, or a descriptor
+   * `{ key, control, options }` so a row can carry a switch or an enum. Task
+   * rows and note cards need both, and a checkbox typed as the string "true"
+   * is the kind of thing that only breaks once it reaches the renderer.
+   */
   function itemsControl(items, set, spec) {
-    const shape = spec.shape ?? null;
+    const shape = spec.shape ? spec.shape.map((s) => (typeof s === "string" ? { key: s } : s)) : null;
+
+    const move = (index, delta) => {
+      const target = index + delta;
+      if (target < 0 || target >= items.length) return;
+      const next = [...items];
+      [next[index], next[target]] = [next[target], next[index]];
+      set(next);
+    };
 
     const rows = items.map((item, index) => {
       if (!shape) {
@@ -1112,36 +1130,78 @@ export function createInspector(editor) {
         );
       }
 
+      const write = (key) => (value) => {
+        const next = [...items];
+        next[index] = { ...item, [key]: value };
+        set(next);
+      };
+
+      const controlFor = (entry) => {
+        const current = item?.[entry.key];
+        switch (entry.control) {
+          case "icon":
+            return iconControl(current, write(entry.key));
+          case "switch":
+            return el("div.row", switchControl(Boolean(current), write(entry.key)));
+          case "select": {
+            const options = entry.options ?? [];
+            return el(
+              "select.select",
+              {
+                value: String(current ?? options[0]?.value ?? ""),
+                onchange: (event) => {
+                  const raw = event.target.value;
+                  const option = options.find((o) => String(o.value) === raw);
+                  write(entry.key)(option ? option.value : raw);
+                },
+              },
+              ...options.map((o) => el("option", { value: String(o.value) }, o.label)),
+            );
+          }
+          case "color":
+            return colorField(
+              typeof current === "string" && current.startsWith("#")
+                ? current
+                : (resolveThemeColor(current, editor.theme) ?? editor.theme?.colors?.primary ?? "#000000"),
+              write(entry.key),
+              { contrastAgainst: editor.theme?.colors?.background },
+            );
+          case "number":
+            return numberField(Number(current) || 0, write(entry.key), entry);
+          default:
+            return el("input.input", {
+              value: String(current ?? ""),
+              placeholder: entry.placeholder ?? "",
+              onchange: (event) => write(entry.key)(event.target.value),
+            });
+        }
+      };
+
+      // `glyph` stays special-cased by name so the shapes written before typed
+      // entries existed keep their icon picker.
+      const typed = shape.map((entry) => (entry.control ? entry : { ...entry, control: entry.key === "glyph" ? "icon" : "text" }));
+
+      const title = item?.title ?? item?.label ?? item?.name ?? "";
+
       return el(
         "div.action-card",
         el(
           "div.action-card-head",
           icon("dragHandle", 12),
-          el("span.spacer", `Item ${index + 1}`),
+          el("span.spacer", String(title).trim() || `Item ${index + 1}`),
+          el(
+            "button.btn.sm.icon.ghost",
+            { "data-tip": "Move up", disabled: index === 0, onclick: () => move(index, -1) },
+            icon("arrowUp"),
+          ),
+          el(
+            "button.btn.sm.icon.ghost",
+            { "data-tip": "Move down", disabled: index === items.length - 1, onclick: () => move(index, 1) },
+            icon("arrowDown"),
+          ),
           el("button.btn.sm.icon.ghost", { "data-tip": "Remove", onclick: () => set(items.filter((_, i) => i !== index)) }, icon("close")),
         ),
-        el(
-          "div.action-card-body",
-          ...shape.map((key) =>
-            fieldRow(
-              fmt.label(key),
-              key === "glyph"
-                ? iconControl(item[key], (v) => {
-                    const next = [...items];
-                    next[index] = { ...item, [key]: v };
-                    set(next);
-                  })
-                : el("input.input", {
-                    value: String(item?.[key] ?? ""),
-                    onchange: (event) => {
-                      const next = [...items];
-                      next[index] = { ...item, [key]: event.target.value };
-                      set(next);
-                    },
-                  }),
-            ),
-          ),
-        ),
+        el("div.action-card-body", ...typed.map((entry) => fieldRow(entry.label ?? fmt.label(entry.key), controlFor(entry)))),
       );
     });
 
@@ -1153,7 +1213,19 @@ export function createInspector(editor) {
         "button.btn.subtle.sm",
         {
           style: { width: "100%" },
-          onclick: () => set([...items, shape ? Object.fromEntries(shape.map((k) => [k, ""])) : "New item"]),
+          onclick: () => {
+            const blank = shape
+              ? Object.fromEntries(
+                  shape.map((entry) => {
+                    if (entry.control === "switch") return [entry.key, false];
+                    if (entry.control === "select") return [entry.key, entry.options?.[0]?.value ?? ""];
+                    if (entry.control === "number") return [entry.key, entry.min ?? 0];
+                    return [entry.key, ""];
+                  }),
+                )
+              : "New item";
+            set([...items, blank]);
+          },
         },
         icon("plus"),
         "Add item",

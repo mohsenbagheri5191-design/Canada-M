@@ -34,6 +34,8 @@ export const blockGroups = [
   { key: "hero", name: "Hero & summary", glyph: "sparkle" },
   { key: "stats", name: "Stats", glyph: "chart" },
   { key: "lists", name: "Lists & records", glyph: "list" },
+  { key: "tasks", name: "Tasks & projects", glyph: "listChecks" },
+  { key: "notes", name: "Notes & labels", glyph: "note" },
   { key: "detail", name: "Detail", glyph: "card" },
   { key: "forms", name: "Forms", glyph: "input" },
   { key: "actions", name: "Actions & CTA", glyph: "button" },
@@ -250,6 +252,279 @@ export const blocks = [
       ]),
   },
 
+  /* ===== Tasks & projects ================================================ */
+  {
+    key: "tasks-today",
+    group: "tasks",
+    name: "Today's tasks",
+    description: "A grouped task list with a completion bar.",
+    tags: ["task", "todo", "today", "list"],
+    tree: () => n("TaskList", { title: "Today", showCount: true, showProgress: true }),
+  },
+  {
+    key: "tasks-grouped",
+    group: "tasks",
+    name: "Grouped by day",
+    description: "Three task groups under one heading.",
+    tags: ["task", "agenda", "week"],
+    tree: () =>
+      n("Stack", { direction: "vertical", gap: 20 }, [
+        n("TaskList", {
+          title: "Today",
+          items: [
+            { title: "Draft the Q3 rollout plan", state: "doing", priority: "high", due: "Today", assignee: "Maya Chen" },
+            { title: "Review vendor quotes", state: "open", priority: "medium", due: "Today", assignee: "Sam Okafor" },
+          ],
+        }),
+        n("TaskList", {
+          title: "Tomorrow",
+          showProgress: false,
+          items: [
+            { title: "Send the budget summary", state: "open", priority: "low", due: "Thu", assignee: "" },
+            { title: "Waiting on legal sign-off", state: "blocked", priority: "urgent", due: "Thu", assignee: "Leo Dubois" },
+          ],
+        }),
+        n("TaskList", {
+          title: "Later",
+          showProgress: false,
+          items: [{ title: "Plan the retro", state: "open", priority: "none", due: "Next week", assignee: "" }],
+        }),
+      ]),
+  },
+  {
+    key: "tasks-row",
+    group: "tasks",
+    name: "Single task row",
+    description: "One task on its own, for a custom grouping.",
+    tags: ["task", "row", "checkbox"],
+    tree: () => n("TaskRow", { priority: "high", assignee: "Maya Chen" }),
+  },
+  {
+    key: "tasks-board",
+    group: "tasks",
+    name: "Board",
+    description: "Columns of cards that scroll sideways.",
+    tags: ["kanban", "board", "columns", "sprint"],
+    tree: () => n("KanbanBoard", {}),
+  },
+  {
+    key: "tasks-project-card",
+    group: "tasks",
+    name: "Project card",
+    description: "Progress ring, team and due date.",
+    tags: ["project", "progress", "summary"],
+    tree: () => n("ProjectCard", {}),
+  },
+  {
+    key: "tasks-project-list",
+    group: "tasks",
+    name: "Project list",
+    description: "Three projects, each with its own state.",
+    tags: ["project", "portfolio", "list"],
+    tree: () =>
+      n("Stack", { direction: "vertical", gap: 10 }, [
+        n("ProjectCard", { showRing: false }),
+        n("ProjectCard", {
+          name: "Website Refresh",
+          client: "Internal",
+          status: "At risk",
+          statusTone: "warning",
+          progress: 0.34,
+          taskCount: "9 of 26 tasks",
+          due: "21 Oct",
+          members: ["Sam Okafor", "Ana Ruiz"],
+          accent: "{{theme.colors.warning}}",
+          showRing: false,
+        }),
+        n("ProjectCard", {
+          name: "Certification Audit",
+          client: "Brightroof",
+          status: "Blocked",
+          statusTone: "danger",
+          progress: 0.12,
+          taskCount: "3 of 24 tasks",
+          due: "8 Nov",
+          members: ["Priya Raman"],
+          accent: "{{theme.colors.danger}}",
+          showRing: false,
+        }),
+      ]),
+  },
+  {
+    key: "tasks-sprint-hero",
+    group: "tasks",
+    name: "Sprint summary",
+    description: "A ring beside the counts it summarises.",
+    tags: ["sprint", "progress", "ring", "hero"],
+    tree: () =>
+      n("Card", { padding: pad(18), gap: 0, radius: 18 }, [
+        n("Stack", { direction: "horizontal", gap: 18, align: "center" }, [
+          n("ProgressRing", { value: 0.72, label: "", caption: "", diameter: 78, thickness: 8, align: "left" }),
+          n("Stack", { direction: "vertical", gap: 6, size: { width: "fill" } }, [
+            n("Heading", { text: "Sprint 14", level: 3, fontSize: 17, fontWeight: 650 }),
+            n("Text", { text: "18 of 26 tasks · 4 days left", fontSize: 13, color: "{{theme.colors.textSecondary}}" }),
+            n("AvatarGroup", { names: ["Maya Chen", "Sam Okafor", "Priya Raman", "Leo Dubois", "Ana Ruiz"], max: 4, avatarSize: 26, label: "" }),
+          ]),
+        ]),
+      ]),
+  },
+  {
+    key: "tasks-checklist",
+    group: "tasks",
+    name: "Subtask checklist",
+    description: "Acceptance criteria with a done count.",
+    tags: ["checklist", "subtask", "criteria"],
+    tree: () => n("Checklist", {}),
+  },
+  {
+    key: "tasks-detail-head",
+    group: "tasks",
+    name: "Task detail head",
+    description: "Title, labels, assignee and due date.",
+    tags: ["task", "detail", "header"],
+    tree: () =>
+      n("Stack", { direction: "vertical", gap: 14 }, [
+        n("Stack", { direction: "horizontal", gap: 8, align: "center" }, [
+          n("Badge", { text: "In progress", tone: "primary", glyph: "circleDot" }),
+          n("Spacer", { grow: true }),
+          n("Text", { text: "PRJ-214", fontSize: 12, color: "{{theme.colors.textTertiary}}" }),
+        ]),
+        n("Heading", { text: "Draft the Q3 rollout plan", level: 1, fontSize: 23, fontWeight: 660, lineHeight: 1.25 }),
+        n("TagList", { variant: "soft", items: [{ text: "planning", color: "{{theme.colors.primary}}" }, { text: "q3", color: "{{theme.colors.info}}" }] }),
+        n("Divider", {}),
+        n("Stack", { direction: "horizontal", gap: 20, align: "center" }, [
+          n("Stack", { direction: "vertical", gap: 4 }, [
+            n("Text", { text: "Assignee", fontSize: 11, color: "{{theme.colors.textTertiary}}", transform: "uppercase", letterSpacing: 0.04 }),
+            n("AvatarGroup", { names: ["Maya Chen"], max: 1, avatarSize: 26, label: "Maya Chen" }),
+          ]),
+          n("Spacer", { grow: true }),
+          n("Stack", { direction: "vertical", gap: 4, align: "end" }, [
+            n("Text", { text: "Due", fontSize: 11, color: "{{theme.colors.textTertiary}}", transform: "uppercase", letterSpacing: 0.04 }),
+            n("Text", { text: "Thu 24 Sep", fontSize: 13, fontWeight: 600 }),
+          ]),
+        ]),
+      ]),
+  },
+
+  /* ===== Notes & labels ================================================== */
+  {
+    key: "notes-grid",
+    group: "notes",
+    name: "Note grid",
+    description: "Two columns of note previews.",
+    tags: ["note", "grid", "cards"],
+    tree: () =>
+      n("Grid", { columns: 2, gap: 10 }, [
+        n("NoteCard", { accent: "{{theme.colors.primary}}" }),
+        n("NoteCard", {
+          title: "Vendor comparison",
+          body: "Three quotes in. The middle one covers install, the cheapest does not.",
+          tags: ["research"],
+          pinned: false,
+          meta: "Yesterday",
+          accent: "{{theme.colors.info}}",
+        }),
+        n("NoteCard", {
+          title: "Reading list",
+          body: "Server-driven UI at scale; the Airbnb write-up and the Spotify follow-up.",
+          tags: ["links"],
+          pinned: false,
+          meta: "Mon",
+          accent: "",
+        }),
+        n("NoteCard", {
+          title: "Retro — sprint 13",
+          body: "Kept: short standups. Dropped: the mid-week review nobody attended.",
+          tags: ["retro", "team"],
+          pinned: false,
+          meta: "Last week",
+          accent: "{{theme.colors.warning}}",
+        }),
+      ]),
+  },
+  {
+    key: "notes-list",
+    group: "notes",
+    name: "Note list",
+    description: "Full-width notes, pinned first.",
+    tags: ["note", "list", "pinned"],
+    tree: () =>
+      n("Stack", { direction: "vertical", gap: 10 }, [
+        n("Text", { text: "Pinned", fontSize: 11, color: "{{theme.colors.textTertiary}}", transform: "uppercase", letterSpacing: 0.04, fontWeight: 600 }),
+        n("NoteCard", { accent: "{{theme.colors.primary}}" }),
+        n("Text", { text: "All notes", fontSize: 11, color: "{{theme.colors.textTertiary}}", transform: "uppercase", letterSpacing: 0.04, fontWeight: 600, margin: pad(8, 0, 0, 0) }),
+        n("NoteCard", {
+          title: "Vendor comparison",
+          body: "Three quotes in. The middle one covers install, the cheapest does not.",
+          tags: ["research"],
+          pinned: false,
+          meta: "Yesterday",
+          accent: "",
+          showAccentBar: false,
+        }),
+        n("NoteCard", {
+          title: "Retro — sprint 13",
+          body: "Kept: short standups. Dropped: the mid-week review nobody attended.",
+          tags: ["retro", "team"],
+          pinned: false,
+          meta: "Last week",
+          accent: "",
+          showAccentBar: false,
+        }),
+      ]),
+  },
+  {
+    key: "notes-body",
+    group: "notes",
+    name: "Note body",
+    description: "A typed document: headings, lists, quote, code.",
+    tags: ["note", "editor", "rich text", "document"],
+    tree: () => n("RichText", {}),
+  },
+  {
+    key: "notes-editor-head",
+    group: "notes",
+    name: "Note editor head",
+    description: "Title, meta line and labels above a body.",
+    tags: ["note", "editor", "header"],
+    tree: () =>
+      n("Stack", { direction: "vertical", gap: 12 }, [
+        n("Heading", { text: "Kickoff notes — 14 Sep", level: 1, fontSize: 24, fontWeight: 660, lineHeight: 1.22 }),
+        n("Stack", { direction: "horizontal", gap: 8, align: "center" }, [
+          n("Text", { text: "Edited 2h ago · Maya Chen", fontSize: 12, color: "{{theme.colors.textTertiary}}" }),
+          n("Spacer", { grow: true }),
+          n("Icon", { name: "pin", size: 15, color: "{{theme.colors.primary}}" }),
+        ]),
+        n("TagList", { variant: "soft", items: [{ text: "meeting", color: "{{theme.colors.primary}}" }, { text: "scope", color: "{{theme.colors.info}}" }] }),
+        n("Divider", { margin: pad(2, 0) }),
+        n("RichText", {}),
+      ]),
+  },
+  {
+    key: "notes-labels",
+    group: "notes",
+    name: "Label row",
+    description: "Coloured labels in three variants.",
+    tags: ["label", "tag", "chip"],
+    tree: () => n("TagList", {}),
+  },
+  {
+    key: "notes-search",
+    group: "notes",
+    name: "Search and scopes",
+    description: "A search field with scope chips under it.",
+    tags: ["search", "filter", "scope"],
+    tree: () => n("SearchBar", { showScopes: true }),
+  },
+  {
+    key: "notes-sections",
+    group: "notes",
+    name: "Collapsible sections",
+    description: "Accordion panels, the first one open.",
+    tags: ["accordion", "collapse", "faq"],
+    tree: () => n("Accordion", {}),
+  },
+
   /* ===== Detail ========================================================== */
   {
     key: "detail-facts",
@@ -310,6 +585,29 @@ export const blocks = [
         n("Divider", {}),
         n("Toggle", { label: "Customer walkthrough", value: false }),
       ]),
+  },
+  {
+    key: "detail-files",
+    group: "detail",
+    name: "Files",
+    description: "Attachments on a record.",
+    tags: ["files", "attachments", "upload"],
+    tree: () =>
+      n("Stack", { direction: "vertical", gap: 10 }, [
+        n("Stack", { direction: "horizontal", gap: 8, align: "center" }, [
+          n("Heading", { text: "Files", level: 3, fontSize: 15, size: { width: "fill" } }),
+          n("Text", { text: "3", fontSize: 12, color: "{{theme.colors.textTertiary}}" }),
+        ]),
+        n("AttachmentList", {}),
+      ]),
+  },
+  {
+    key: "detail-discussion",
+    group: "detail",
+    name: "Discussion",
+    description: "Comments with a composer at the end.",
+    tags: ["comments", "activity", "thread"],
+    tree: () => n("CommentThread", {}),
   },
 
   /* ===== Forms =========================================================== */
@@ -589,6 +887,93 @@ export const screenTemplates = [
     tree: () =>
       n("Stack", { direction: "vertical", gap: 16, justify: "center", padding: pad(24, 20), background: "{{theme.colors.background}}", size: { width: "fill", height: "fill" } }, [
         n("EmptyState", {}),
+      ]),
+  },
+
+  /* --- Projects, tasks and notes ----------------------------------------- */
+  {
+    key: "today",
+    name: "Today",
+    description: "Sprint summary, then what is due.",
+    glyph: "listChecks",
+    tree: () =>
+      n("Stack", { direction: "vertical", gap: 18, padding: pad(20, 16, 24, 16), background: "{{theme.colors.background}}", size: { width: "fill", height: "fill" } }, [
+        blockByKey("header-greeting").tree(),
+        blockByKey("tasks-sprint-hero").tree(),
+        blockByKey("tasks-grouped").tree(),
+      ]),
+  },
+  {
+    key: "board",
+    name: "Board",
+    description: "A sprint board with a filter bar.",
+    glyph: "kanban",
+    tree: () =>
+      n("Stack", { direction: "vertical", gap: 16, padding: pad(16, 16, 24, 16), background: "{{theme.colors.background}}", size: { width: "fill", height: "fill" } }, [
+        n("Header", { title: "Sprint 14", showBack: true, showAvatar: true, size: { height: 48 } }),
+        n("ChipRow", { items: ["All", "Mine", "Unassigned", "Blocked"], selectedIndex: 0 }),
+        n("KanbanBoard", {}),
+      ]),
+  },
+  {
+    key: "projects",
+    name: "Projects",
+    description: "Every project with its state and progress.",
+    glyph: "layers",
+    tree: () =>
+      n("Stack", { direction: "vertical", gap: 16, padding: pad(16, 16, 24, 16), background: "{{theme.colors.background}}", size: { width: "fill", height: "fill" } }, [
+        n("Header", { title: "Projects", showBack: false, showAvatar: true, size: { height: 48 } }),
+        n("SearchBar", { placeholder: "Search projects", showFilter: true }),
+        blockByKey("tasks-project-list").tree(),
+      ]),
+  },
+  {
+    key: "task-detail",
+    name: "Task detail",
+    description: "Head, checklist, files and discussion.",
+    glyph: "checkSquare",
+    tree: () =>
+      n("Stack", { direction: "vertical", gap: 18, padding: pad(12, 16, 28, 16), background: "{{theme.colors.background}}", size: { width: "fill", height: "fill" } }, [
+        n("Header", { title: "Task", showBack: true, showAvatar: false }),
+        blockByKey("tasks-detail-head").tree(),
+        n("Checklist", {}),
+        blockByKey("detail-files").tree(),
+        n("CommentThread", {}),
+      ]),
+  },
+  {
+    key: "notes",
+    name: "Notes",
+    description: "Search, scopes and a grid of notes.",
+    glyph: "note",
+    tree: () =>
+      n("Stack", { direction: "vertical", gap: 16, padding: pad(16, 16, 24, 16), background: "{{theme.colors.background}}", size: { width: "fill", height: "fill" } }, [
+        n("Header", { title: "Notes", showBack: false, showAvatar: true, size: { height: 48 } }),
+        n("SearchBar", { placeholder: "Search notes", showScopes: true, scopes: ["All", "Pinned", "Shared", "Archive"], scopeIndex: 0 }),
+        blockByKey("notes-grid").tree(),
+      ]),
+  },
+  {
+    key: "note-detail",
+    name: "Note",
+    description: "A single note, open for reading.",
+    glyph: "text",
+    tree: () =>
+      n("Stack", { direction: "vertical", gap: 14, padding: pad(12, 18, 32, 18), background: "{{theme.colors.background}}", size: { width: "fill", height: "fill" } }, [
+        n("Header", { title: "", showBack: true, showAvatar: false, size: { height: 44 } }),
+        blockByKey("notes-editor-head").tree(),
+      ]),
+  },
+  {
+    key: "planner",
+    name: "Planner",
+    description: "A month grid above the day's tasks.",
+    glyph: "monthGrid",
+    tree: () =>
+      n("Stack", { direction: "vertical", gap: 18, padding: pad(16, 16, 24, 16), background: "{{theme.colors.background}}", size: { width: "fill", height: "fill" } }, [
+        n("Header", { title: "Planner", showBack: false, showAvatar: true, size: { height: 48 } }),
+        n("MiniCalendar", {}),
+        n("TaskList", { title: "Thursday 17", showProgress: false }),
       ]),
   },
 ];

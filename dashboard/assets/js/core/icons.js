@@ -232,10 +232,60 @@ const P = {
   cloud: ["M17.4 19.5H7.2a4.7 4.7 0 0 1-.6-9.4 6.3 6.3 0 0 1 12.1 1.5 4.2 4.2 0 0 1-1.3 7.9Z"],
   db: ["M20 6.4c0 1.6-3.6 2.9-8 2.9S4 8 4 6.4 7.6 3.5 12 3.5s8 1.3 8 2.9Z", "M4 6.4v11.2c0 1.6 3.6 2.9 8 2.9s8-1.3 8-2.9V6.4", "M4 12c0 1.6 3.6 2.9 8 2.9s8-1.3 8-2.9"],
   logout: ["M9.5 20.5H5.5A1.5 1.5 0 0 1 4 19V5a1.5 1.5 0 0 1 1.5-1.5h4", "M15.5 16.5 20 12l-4.5-4.5", "M20 12H9"],
+
+  /* ---- Projects, tasks and notes ----------------------------------------- */
+  // An empty box: the unchecked state, and the neutral placeholder glyph.
+  square: ["M5.5 4.5h13A1 1 0 0 1 19.5 5.5v13a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1Z"],
+  // The same box with a tick: done.
+  checkSquare: ["M5.5 4.5h13a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1Z", "M8.4 12.1 11 14.7l4.8-5.2"],
+  // A ring: a task not started.
+  circle: ["M12 20.5a8.5 8.5 0 1 0 0-17 8.5 8.5 0 0 0 0 17Z"],
+  // A ring with a core: in progress.
+  circleDot: ["M12 20.5a8.5 8.5 0 1 0 0-17 8.5 8.5 0 0 0 0 17Z", "M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z"],
+  // A half-filled ring: partially complete.
+  circleHalf: ["M12 20.5a8.5 8.5 0 1 0 0-17 8.5 8.5 0 0 0 0 17Z", "M12 3.5v17a8.5 8.5 0 0 0 0-17Z"],
+  // A pennant on a pole: priority. Solid, because it is a state marker read at
+  // 13px next to a task title, where a 1.6 stroke on a 5px pennant disappears.
+  flag: ["M5.2 3.2h2v17.6h-2z", "M8.4 4 19 7.8 8.4 11.6z"],
+  // Three columns with a card in each: a board.
+  kanban: [
+    "M4.5 4.5h4v11h-4ZM10 4.5h4v7h-4ZM15.5 4.5h4v14h-4Z",
+    "M4.5 4.5h15",
+  ],
+  // Ticks beside lines: a checklist.
+  listChecks: ["M4 6.6 5.6 8.2 8.2 5.4", "M4 16.6 5.6 18.2 8.2 15.4", "M11.5 7h8.5M11.5 17h8.5"],
+  // A branch dropping into a row: a subtask.
+  subtask: ["M7 4.5v9a2 2 0 0 0 2 2h3.5", "M13 12.5l3 3-3 3", "M19.5 8.5h-5"],
+  // A folded corner: a note.
+  note: ["M5.5 3.5h9.3l4.7 4.7V20.5a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1v-16a1 1 0 0 1 1-1Z", "M14.5 3.7v4.6h4.6", "M8 12.5h7M8 16.5h5"],
+  // A speech bubble: one comment.
+  comment: ["M20.5 14.2a2.8 2.8 0 0 1-2.8 2.8H8.9L4.5 20.5V6.3a2.8 2.8 0 0 1 2.8-2.8h10.4a2.8 2.8 0 0 1 2.8 2.8Z", "M9 8.8h6.5M9 12.2h4"],
+  // Two opening marks: a quotation.
+  quote: ["M9.4 6.5C6.6 7.8 5.2 10 5.2 13v4.5h4.6V12H7.6c0-1.9.6-3.2 1.8-4Z", "M18.4 6.5C15.6 7.8 14.2 10 14.2 13v4.5h4.6V12h-2.2c0-1.9.6-3.2 1.8-4Z"],
+  // A ribbon: saved for later.
+  bookmark: ["M6.5 3.5h11a1 1 0 0 1 1 1v16l-6.5-4.4L5.5 20.5v-16a1 1 0 0 1 1-1Z"],
+  // A clip: an attachment.
+  paperclip: ["M19.1 11.3 12 18.4a4.6 4.6 0 0 1-6.5-6.5l7.8-7.8a3.1 3.1 0 0 1 4.4 4.4l-7.8 7.8a1.6 1.6 0 0 1-2.2-2.2l7-7"],
+  // A dial with a hand: elapsed time.
+  timer: ["M12 21a7.8 7.8 0 1 0 0-15.6 7.8 7.8 0 0 0 0 15.6Z", "M12 9.4v3.8l2.6 1.6", "M9.4 3h5.2"],
+  // A grid of days with a marked one: the month.
+  monthGrid: [
+    "M4.5 5.5h15a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1Z",
+    "M3.5 10h17", "M8 3.5v4M16 3.5v4",
+    "M8 13.4h.01M12 13.4h.01M16 13.4h.01M8 17h.01M12 17h.01",
+  ],
+  // A ring with a gap: proportion.
+  ring: ["M12 3.7a8.3 8.3 0 1 1-5.9 2.4", "M12 3.7a8.3 8.3 0 0 1 5.9 2.4"],
+  // Overlapping heads: a team on a record.
+  avatarGroup: [
+    "M9.6 11.4a3.6 3.6 0 1 0 0-7.2 3.6 3.6 0 0 0 0 7.2Z",
+    "M2.8 20.2a6.8 6.8 0 0 1 13.6 0",
+    "M16 4.6a3.6 3.6 0 0 1 0 6.9", "M17.4 14.2a6.8 6.8 0 0 1 3.8 6",
+  ],
 };
 
 /** Glyphs drawn with a fill instead of a stroke. */
-const FILLED = new Set(["play", "pointer"]);
+const FILLED = new Set(["play", "pointer", "flag"]);
 
 const cache = new Map();
 

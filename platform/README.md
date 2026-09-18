@@ -34,6 +34,8 @@ Seven migrations, applied and verified:
 | `row_level_security` | RLS on all 21 tables, role helpers, per-tenant policies |
 | `resolve_layout` | the resolution rule and its two callable wrappers |
 | `lock_down_function_execute` | closes the default `PUBLIC` grant on every `SECURITY DEFINER` function |
+| `preview_tokens` | share links for an unpublished design version, and the anon-callable resolver behind them |
+| `lock_down_preview_grants` | closes the named `anon` grants Supabase adds on top of the `PUBLIC` one |
 
 Supabase's migration history is the authoritative copy. To vendor them here:
 
@@ -126,6 +128,32 @@ BrightRoof user, no assignment
 The second is the fallback chain running to the end without erroring, which is
 the behaviour that stops a missing assignment becoming a blank app.
 
+### A second finding, from building preview links
+
+The first finding was that `revoke execute ... from anon` does nothing on its
+own, because Postgres grants `EXECUTE` to `PUBLIC` and `PUBLIC` includes `anon`.
+
+Preview links turned up the mirror image. Supabase's default privileges *also*
+grant `EXECUTE` and table rights to the `anon` and `authenticated` roles **by
+name**, so `revoke ... from public` on its own is equally useless — the named
+grant survives it. `issue_preview_token` came out of its migration executable by
+`anon` despite the revoke.
+
+Neither was exploitable: the function checks its caller itself and refused with
+`42501`, and the token table is behind RLS with no policy matching `anon`. But a
+grant nobody intended is one refactor away from being the only thing that was
+holding. `lock_down_preview_grants` revokes from both, and `verify.sql` now
+asserts it.
+
+The rule, stated once: **a function is only closed when it has been revoked from
+`PUBLIC` *and* from `anon`.** Either alone is a no-op.
+
+That test also changed shape. It used to assert that *no* `SECURITY DEFINER`
+function is anon-callable. `resolve_preview` is deliberately anon-callable — a
+review link is sent to people with no account — so the rule is now an allowlist
+naming it. A blanket rule that has to be deleted the first time a legitimate
+exception appears stops protecting anything.
+
 ### One finding from building it
 
 The first pass at locking down functions used `revoke execute ... from anon`.
@@ -158,7 +186,9 @@ cannot be signed in with.
 - **Auth flows.** Supabase Auth is available but there is no invite, no
   password reset, no session UI, and no trigger creating an `app_users` row when
   an `auth.users` row appears.
-- **The app.** Nothing consumes `resolve_my_layout()` yet.
+- **App data.** The app renders, but its components still show authored sample
+  content; nothing is bound to `tasks`, `notes` or `projects` yet, and the app
+  writes nothing back.
 - **Rules execution.** Tables and run log exist; no worker, no scheduler.
 - **entity_configs rows.** The tables exist; App Data cannot see them until
   each is described.

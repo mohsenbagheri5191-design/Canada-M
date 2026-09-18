@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!-- viewport-fit=cover so env(safe-area-inset-*) reports real values on a
+         notched device; without it the insets are always zero and the tab bar
+         sits under the home indicator. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="description" content="The app, rendered from the layout published in the design dashboard." />
+    <title>Workspace</title>
+    <!-- Inline so there is no second request, and no 404 for /favicon.ico when
+         the browser goes looking for one on its own. -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%232f6fed'/%3E%3Cpath d='M7 12.2l3.1 3.1L17 8.5' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="./assets/css/app.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+    <noscript>
+      <p style="padding: 24px; font: 14px system-ui">This app needs JavaScript to run.</p>
+    </noscript>
+    <script type="module" src="./assets/js/main.js"></script>
+  </body>
+</html>

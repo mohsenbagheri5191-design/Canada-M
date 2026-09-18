@@ -120,15 +120,30 @@ begin
 end $$;
 
 -- ===========================================================================
--- 3. No SECURITY DEFINER function is reachable before sign-in
+-- 3. Only functions we chose are reachable before sign-in
 --
 -- This is the hole the Supabase linter caught on the first pass: Postgres
 -- grants EXECUTE to PUBLIC by default, so revoking from `anon` alone leaves the
 -- function callable at /rest/v1/rpc/<name> with nothing but the anon key.
+--
+-- Building preview links found the mirror image of that. Supabase's default
+-- privileges grant EXECUTE to the `anon` and `authenticated` roles *by name*,
+-- so revoking from PUBLIC alone is equally useless. A function is only closed
+-- when both revokes have run.
+--
+-- The rule used to be "none". It is now an allowlist, because exactly one
+-- function is meant to be anon-callable and a blanket rule would have to be
+-- deleted to accommodate it — at which point it stops protecting anything.
+-- Anything not named here fails until somebody decides it belongs.
 -- ===========================================================================
 
 do $$
 declare
+  -- Deliberately reachable without a session:
+  --   resolve_preview — a design review link is sent to people with no
+  --   account. It returns one design version and nothing else, and only to a
+  --   caller holding a live, unguessable, expiring token.
+  v_allowed text[] := array['resolve_preview'];
   v_exposed text;
 begin
   select string_agg(p.proname, ', ' order by p.proname)
@@ -137,14 +152,74 @@ begin
     join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public'
      and p.prosecdef
-     and has_function_privilege('anon', p.oid, 'EXECUTE');
+     and has_function_privilege('anon', p.oid, 'EXECUTE')
+     and not (p.proname = any (v_allowed));
 
   if v_exposed is not null then
     raise exception
       'FAIL anon exposure: SECURITY DEFINER functions callable by anon: %', v_exposed;
   end if;
 
-  raise notice 'PASS anon exposure: no SECURITY DEFINER function is reachable by anon';
+  raise notice 'PASS anon exposure: only the reviewed allowlist is reachable by anon';
+end $$;
+
+-- A preview token is a bearer credential, so the table holding them must not be
+-- readable by anon at the grant level — not merely blocked by a policy, which
+-- is one `for all to public` away from being undone.
+do $$
+begin
+  if to_regclass('public.preview_tokens') is null then
+    raise notice 'SKIP preview tokens: table not present';
+    return;
+  end if;
+
+  if has_table_privilege('anon', 'public.preview_tokens', 'select') then
+    raise exception 'FAIL preview tokens: anon holds SELECT on the token table';
+  end if;
+
+  if has_function_privilege('anon', 'public.issue_preview_token(uuid,integer,text)', 'execute') then
+    raise exception 'FAIL preview tokens: anon can mint preview links';
+  end if;
+
+  if has_function_privilege('anon', 'public.revoke_preview_token(text)', 'execute') then
+    raise exception 'FAIL preview tokens: anon can revoke preview links';
+  end if;
+
+  -- Unbounded lifetime is the failure mode that turns a share link into a
+  -- permanent backdoor, so the constraint that prevents it is asserted too.
+  if not exists (
+    select 1 from pg_constraint
+     where conrelid = 'public.preview_tokens'::regclass
+       and conname = 'preview_tokens_expiry_bounded'
+  ) then
+    raise exception 'FAIL preview tokens: nothing bounds how long a token lives';
+  end if;
+
+  raise notice 'PASS preview tokens: anon may resolve one, and may not mint, revoke or list them';
+end $$;
+
+-- A preview must answer the same way for absent, expired and revoked tokens
+-- rather than confirming that a token once existed, and must never return a
+-- tenant's records along with the layout.
+do $$
+declare
+  v jsonb;
+begin
+  if to_regclass('public.preview_tokens') is null then
+    raise notice 'SKIP preview resolution: table not present';
+    return;
+  end if;
+
+  v := public.resolve_preview('definitely-not-a-real-token');
+  if coalesce(v ->> 'error', '') <> 'invalid' then
+    raise exception 'FAIL preview resolution: an unknown token did not answer "invalid" (got %)', v;
+  end if;
+
+  if v ? 'screens' or v ? 'theme' or v ? 'designName' then
+    raise exception 'FAIL preview resolution: a rejected token leaked design fields';
+  end if;
+
+  raise notice 'PASS preview resolution: a rejected token reveals nothing';
 end $$;
 
 -- The arbitrary-user resolver must not be in the exposed schema at all.

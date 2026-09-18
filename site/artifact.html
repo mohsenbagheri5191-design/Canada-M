@@ -1,0 +1,493 @@
+<title>Canada M Workspace</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+/>
+
+<style>
+  :root {
+    /* Light. Neutrals carry a slight warm bias toward the accent so the greys
+       read as chosen rather than inherited. */
+    --ground: #f3f2f0;
+    --surface: #ffffff;
+    --sunken: #e9e7e3;
+    --line: #dcd9d4;
+    --ink: #17161a;
+    --dim: #57545c;
+    --faint: #85818b;
+
+    /* The brand orange is a fill, not a text colour: #ff9900 on white is 2.1:1
+       and fails AA at any size. Text takes the darker step. */
+    --accent: #ff9900;
+    --accent-text: #9a5400;
+    --accent-ink: #1e1503;
+    --accent-wash: #fff3e0;
+
+    --r-sm: 10px;
+    --r-md: 16px;
+    --r-lg: 22px;
+
+    --sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --display: "Bricolage Grotesque", "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #121316;
+      --surface: #1a1c20;
+      --sunken: #212429;
+      --line: #2c2f36;
+      --ink: #eeedf0;
+      --dim: #a6a2ac;
+      --faint: #76727d;
+      --accent: #ff9900;
+      --accent-text: #ffb648;
+      --accent-ink: #1e1503;
+      --accent-wash: #2a1e0c;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #121316;
+    --surface: #1a1c20;
+    --sunken: #212429;
+    --line: #2c2f36;
+    --ink: #eeedf0;
+    --dim: #a6a2ac;
+    --faint: #76727d;
+    --accent: #ff9900;
+    --accent-text: #ffb648;
+    --accent-ink: #1e1503;
+    --accent-wash: #2a1e0c;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    padding-block: 40px 64px;
+    padding-left: 16px;
+    padding-right: 16px;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    width: min(920px, 100%);
+    margin-inline: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+  }
+
+  /* --- Masthead ---------------------------------------------------------- */
+
+  .masthead {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  .eyebrow::before {
+    content: "";
+    width: 22px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--accent);
+  }
+
+  h1 {
+    margin: 0;
+    font-family: var(--display);
+    font-size: clamp(30px, 6vw, 46px);
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+  }
+
+  h1 em {
+    font-style: normal;
+    color: var(--accent-text);
+  }
+
+  .lede {
+    margin: 0;
+    max-width: 62ch;
+    font-size: 16.5px;
+    color: var(--dim);
+  }
+
+  /* --- The two doors ------------------------------------------------------
+     Deliberately different shapes: these are two products with two contexts,
+     and a pair of identical cards would say they were interchangeable. */
+
+  .doors {
+    display: grid;
+    grid-template-columns: 1.45fr 1fr;
+    gap: 16px;
+    align-items: stretch;
+  }
+
+  @media (max-width: 720px) {
+    .doors {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .door {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 24px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+    color: inherit;
+    text-decoration: none;
+    transition:
+      border-color 180ms cubic-bezier(0.2, 0, 0, 1),
+      transform 180ms cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  .door:hover,
+  .door:focus-visible {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+
+  .door:focus-visible {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 3px;
+  }
+
+  .door h2 {
+    margin: 0;
+    font-family: var(--display);
+    font-size: 21px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .door p {
+    margin: 0;
+    font-size: 14.5px;
+    color: var(--dim);
+  }
+
+  .chip {
+    align-self: flex-start;
+    margin-top: auto;
+    padding-top: 14px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent-text);
+  }
+
+  /* A drawn frame rather than a screenshot: it says which device each door is
+     for without pretending to show a state that may not be the viewer's. */
+  .frame {
+    display: grid;
+    gap: 5px;
+    padding: 12px;
+    border-radius: var(--r-md);
+    background: var(--sunken);
+  }
+
+  .frame span {
+    border-radius: 4px;
+    background: var(--line);
+  }
+
+  .frame.wide {
+    grid-template-columns: 30px 1fr 1fr 1fr;
+    grid-template-rows: 9px 26px 14px;
+  }
+
+  .frame.wide span:nth-child(1) {
+    grid-row: 1 / 4;
+    background: var(--accent);
+    opacity: 0.85;
+  }
+
+  .frame.wide span:nth-child(2) {
+    grid-column: 2 / 5;
+  }
+
+  .frame.tall {
+    grid-template-columns: 1fr;
+    grid-template-rows: 16px 12px 12px 12px;
+    max-width: 118px;
+  }
+
+  .frame.tall span:nth-child(1) {
+    background: var(--accent);
+    opacity: 0.85;
+  }
+
+  /* --- Spec strip ---------------------------------------------------------
+     Real counts from the build, not round marketing numbers. */
+
+  .specs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(126px, 1fr));
+    gap: 1px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    background: var(--line);
+    overflow: hidden;
+  }
+
+  .spec {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 16px 18px;
+    background: var(--surface);
+  }
+
+  .spec b {
+    font-family: var(--display);
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .spec span {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  /* --- Notes -------------------------------------------------------------- */
+
+  .notes {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 24px;
+    border-radius: var(--r-md);
+    background: var(--accent-wash);
+  }
+
+  .notes h3 {
+    margin: 0;
+    font-family: var(--display);
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+  }
+
+  .notes dl {
+    margin: 0;
+    display: grid;
+    gap: 14px;
+  }
+
+  .notes dt {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent-text);
+    margin-bottom: 2px;
+  }
+
+  .notes dd {
+    margin: 0;
+    font-size: 14.5px;
+    color: var(--dim);
+    max-width: 68ch;
+  }
+
+  code {
+    padding: 1px 6px;
+    border-radius: 5px;
+    background: color-mix(in srgb, var(--faint) 22%, transparent);
+    font-family: var(--mono);
+    font-size: 0.88em;
+    color: var(--ink);
+  }
+
+  /* --- How it fits together ----------------------------------------------- */
+
+  .arch {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .arch h3 {
+    margin: 0;
+    font-family: var(--display);
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+  }
+
+  .flow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .step {
+    flex: 1 1 150px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    background: var(--surface);
+  }
+
+  .step b {
+    font-size: 13.5px;
+    font-weight: 600;
+  }
+
+  .step span {
+    font-size: 13px;
+    color: var(--dim);
+  }
+
+  .step.pivot {
+    border-color: var(--accent);
+    border-width: 2px;
+  }
+
+  footer {
+    font-size: 13px;
+    color: var(--faint);
+  }
+
+  footer a {
+    color: var(--dim);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      transition-duration: 1ms !important;
+    }
+  }
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <p class="eyebrow">Server-driven UI</p>
+    <h1>A dashboard that publishes layouts,<br />and the app that <em>renders them</em>.</h1>
+    <p class="lede">
+      Both read one component registry, so a screen looks the same in the editor and on a phone. Layouts live in
+      Postgres and resolve per user, per tenant, per feature flag — changing one ships without a release.
+    </p>
+  </header>
+
+  <div class="doors">
+    <a class="door" href="dashboard/index.html">
+      <div class="frame wide" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+      </div>
+      <h2>Design dashboard</h2>
+      <p>
+        Overview, studio, library, assignments, paths, app data, features and rules. The studio carries 42 components,
+        49 section presets, 15 screen templates, and 7 visual styles that each restyle a whole design at once.
+      </p>
+      <span class="chip">Open on a desktop</span>
+    </a>
+
+    <a class="door" href="app/index.html">
+      <div class="frame tall" aria-hidden="true">
+        <span></span><span></span><span></span><span></span>
+      </div>
+      <h2>The app</h2>
+      <p>
+        Renders whatever layout the database resolves for you, reads real tasks and notes, and writes back when you
+        tick something.
+      </p>
+      <span class="chip">Open on a phone</span>
+    </a>
+  </div>
+
+  <div class="specs">
+    <div class="spec"><b>42</b><span>Components</span></div>
+    <div class="spec"><b>49</b><span>Blocks</span></div>
+    <div class="spec"><b>15</b><span>Templates</span></div>
+    <div class="spec"><b>7 × 11</b><span>Styles × palettes</span></div>
+    <div class="spec"><b>22</b><span>Tables, all RLS</span></div>
+    <div class="spec"><b>0</b><span>Dependencies</span></div>
+  </div>
+
+  <section class="arch">
+    <h3>How a screen reaches a phone</h3>
+    <div class="flow">
+      <div class="step"><b>Design</b><span>Compose a screen in the studio and publish a version.</span></div>
+      <div class="step"><b>Assign</b><span>Bind that version to a user, an organisation, or everyone.</span></div>
+      <div class="step pivot">
+        <b>Resolve</b><span>One database function picks the layout and returns the trace explaining why.</span>
+      </div>
+      <div class="step"><b>Render</b><span>The app draws it from the same registry the studio drew it with.</span></div>
+    </div>
+  </section>
+
+  <section class="notes">
+    <h3>What you will see</h3>
+    <dl>
+      <div>
+        <dt>Dashboard</dt>
+        <dd>
+          Runs against seeded sample data in your browser. Everything works — publish a version, roll one back, change
+          a theme — and nothing is saved anywhere.
+        </dd>
+      </div>
+      <div>
+        <dt>The app</dt>
+        <dd>
+          Asks you to sign in, because what it shows is decided by row-level security in the database. Without
+          credentials you get the sign-in screen, which is the honest answer rather than a fabricated one.
+        </dd>
+      </div>
+      <div>
+        <dt>Preview links</dt>
+        <dd>
+          A draft can be reviewed with no account at all: <code>app/index.html?preview=&lt;token&gt;</code> renders one
+          specific version, read only, and is never counted as usage.
+        </dd>
+      </div>
+    </dl>
+  </section>
+
+  <footer>
+    Source ·
+    <a href="https://github.com/mohsenbagheri5191-design/Canada-M">github.com/mohsenbagheri5191-design/Canada-M</a>
+  </footer>
+</div>

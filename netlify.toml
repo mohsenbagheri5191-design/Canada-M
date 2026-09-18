@@ -1,0 +1,25 @@
+# Static, no build step in the usual sense: the "build" only assembles the two
+# directories a visitor opens, because publishing the repository root would also
+# serve the migrations, the platform notes and the env example.
+[build]
+  command = "bash scripts/build-site.sh"
+  publish = "public"
+
+# Native ES modules, so a stale module is worse than a slow one: the HTML and
+# the JavaScript must revalidate every time or a half-updated app runs.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Frame-Options = "SAMEORIGIN"
+
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"

@@ -19,6 +19,7 @@ import { createRouter } from "./runtime/router.js";
 import { createLayoutProvider } from "./runtime/layout.js";
 import { createDataProvider } from "./runtime/data.js";
 import { createActions } from "./runtime/actions.js";
+import { createOutbox } from "./runtime/outbox.js";
 import { createTelemetry } from "./runtime/telemetry.js";
 import { applyTheme } from "./runtime/theme.js";
 import { previewToken, resolvePreview, PREVIEW_REASONS } from "./runtime/preview.js";
@@ -36,6 +37,7 @@ let provider = null;
 let profile = null;
 let data = null;
 let actions = null;
+let outbox = null;
 
 const router = createRouter({ onNavigate: (screen, meta) => app?.paint(screen, meta) });
 
@@ -84,6 +86,20 @@ async function startApp() {
   telemetry = createTelemetry({ enabled: true });
   const stopTelemetry = telemetry.start();
 
+  // Queued writes outlive a layout change, a navigation and a reload, so the
+  // outbox is built once per session rather than per layout.
+  outbox = createOutbox({
+    onChange: (n) => {
+      if (n > 0) app?.showBanner("warn", `${n} change${n === 1 ? "" : "s"} waiting to sync.`);
+      else app?.clearBanner();
+    },
+    onDrop: (entry, error) => {
+      console.warn("[app] dropped a queued write", entry, error);
+      app?.showBanner("warn", `"${entry.describe || "A change"}" could not be saved.`);
+    },
+  });
+  const stopOutbox = outbox.start();
+
   app = createApp({
     root,
     router,
@@ -104,6 +120,7 @@ async function startApp() {
       });
       actions = createActions({
         data,
+        outbox,
         telemetry,
         onError: (error) => console.warn("[app] write failed", error),
       });
@@ -146,12 +163,17 @@ async function startApp() {
 
   return () => {
     stopTelemetry();
+    stopOutbox();
     router.stop();
   };
 }
 
 async function leave() {
   await telemetry?.flush();
+  // One last attempt before the session goes: a queued write belongs to this
+  // account and cannot be delivered by the next one.
+  await outbox?.drain();
+  await outbox?.clear();
   data?.clear();
   await provider?.forget();
   await signOut();

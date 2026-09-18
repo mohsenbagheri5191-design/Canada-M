@@ -29,6 +29,7 @@ import { createCanvas } from "../studio/canvas.js";
 import { createInspector } from "../studio/inspector.js";
 import { openThemeEditor } from "../studio/theme-editor.js";
 import { openPublishPanel, openVersionHistory, validateDocument } from "../studio/publish.js";
+import { hasSession, issuePreviewToken, isLiveId } from "../data/platform.js";
 
 export function mount(host, { db, go, setCrumbs, params, app }) {
   /* ======================================================================
@@ -1047,41 +1048,84 @@ export function mount(host, { db, go, setCrumbs, params, app }) {
     );
   }
 
+  /**
+   * Mint a preview link.
+   *
+   * This used to fabricate one — "pv_" plus nine random characters, pointing at
+   * a route that does not exist — which looked exactly like a working feature
+   * and was not one. A preview token is a real credential: the database makes
+   * it from 32 random bytes, bounds its lifetime, and can revoke it. A string
+   * invented in a browser is none of those things.
+   *
+   * So this now either produces a real link or says why it cannot. Both reasons
+   * are ordinary and both are worth naming: the design only exists in this
+   * browser, or nobody is signed in for the database to issue a token to.
+   */
   function openPreviewLink() {
-    const token = `pv_${Math.random().toString(36).slice(2, 12)}`;
-    const url = `/t/${db.orgs.get(app.get("org"))?.slug ?? "org"}${editor.screen.route}?preview=${token}`;
-    modal((close) => ({
-      title: "Preview link",
-      subtitle: "A short-lived signed token. Shareable for review without dashboard access.",
-      body: [
-        el("div.code", url),
-        el(
-          "div.callout",
-          icon("shield"),
-          el(
-            "div",
-            el("b", "Valid for 30 minutes."),
-            " The app renders this draft instead of the assigned version, disables telemetry, and watermarks the screen.",
+    const versionId = editor.version?.id ?? null;
+    const live = isLiveId(versionId);
+    const signedIn = hasSession();
+
+    modal((close) => {
+      const output = el("div.col", { style: { gap: "var(--s-3)" } });
+
+      const note = (title, detail, glyph = "info") =>
+        el("div.callout", icon(glyph), el("div", el("b", title), " ", detail));
+
+      if (!live || !signedIn) {
+        mountTo(
+          output,
+          note(
+            !live ? "This design only exists in this browser." : "You are not signed in to the platform.",
+            !live
+              ? "The dashboard is running on seeded sample data, so there is no stored version for a reviewer to open."
+              : "A preview token is issued by the database against your account, so there is nobody to issue it to yet.",
           ),
-        ),
-      ],
-      footer: [
-        el("div.spacer"),
-        el("button.btn.subtle", { onclick: () => close() }, "Close"),
-        el(
-          "button.btn.primary",
-          {
-            onclick: () => {
-              navigator.clipboard?.writeText(url);
-              toast("Preview link copied", { tone: "success" });
-              close();
-            },
-          },
-          icon("copy"),
-          "Copy link",
-        ),
-      ],
-    }));
+          note("You can still review it here.", "Preview renders this screen exactly as the app would.", "eye"),
+        );
+      } else {
+        mountTo(output, el("span.dim", { style: { fontSize: "var(--fs-13)" } }, "Issuing a link…"));
+
+        issuePreviewToken(versionId, { hours: 24, label: editor.screen?.name ?? null })
+          .then(({ url, expiresAt }) => {
+            mountTo(
+              output,
+              el("div.code", { style: { wordBreak: "break-all" } }, url),
+              note(
+                `Valid until ${new Date(expiresAt).toLocaleString()}.`,
+                "It renders this version read-only, records no usage, and can be revoked.",
+                "shield",
+              ),
+              el(
+                "button.btn.primary",
+                {
+                  style: { width: "fit-content" },
+                  onclick: () => {
+                    navigator.clipboard?.writeText(url);
+                    toast("Preview link copied", { tone: "success" });
+                  },
+                },
+                icon("copy"),
+                "Copy link",
+              ),
+            );
+          })
+          .catch((error) => {
+            mountTo(output, note("The link could not be issued.", error.message, "alertCircle"));
+          });
+      }
+
+      return {
+        title: "Preview link",
+        subtitle: "A short-lived token a reviewer can open without an account.",
+        body: [output],
+        footer: [
+          el("div.spacer"),
+          el("button.btn.subtle", { onclick: () => close() }, "Close"),
+          el("button.btn", { onclick: () => { close(); openPreviewModal(); } }, icon("eye"), "Preview here"),
+        ],
+      };
+    });
   }
 
   function openPreviewModal() {

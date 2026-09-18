@@ -149,17 +149,39 @@ export async function accessToken() {
 async function request(path, { method = "GET", body, headers = {}, anon = false, keepalive = false, retry = true } = {}) {
   const token = anon ? null : await accessToken();
 
-  const response = await fetch(`${config.supabaseUrl}/rest/v1${path}`, {
-    method,
-    keepalive,
-    headers: {
-      apikey: config.supabaseKey,
-      authorization: `Bearer ${token ?? config.supabaseKey}`,
-      "content-type": "application/json",
-      ...headers,
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  // Every request is bounded. A server that accepts the connection and then
+  // never answers is a real state — a captive portal, a proxy holding the
+  // socket, a phone handing off between towers — and without a deadline the
+  // promise simply never settles: the write neither succeeds nor fails, the
+  // outbox never sees it, and the user is left looking at a change that is not
+  // going anywhere. An abort produces a rejection, which everything downstream
+  // already knows how to treat as "unreachable".
+  const controller = new AbortController();
+  const deadline = setTimeout(() => controller.abort(), config.requestTimeoutMs);
+
+  let response;
+  try {
+    response = await fetch(`${config.supabaseUrl}/rest/v1${path}`, {
+      method,
+      keepalive,
+      signal: controller.signal,
+      headers: {
+        apikey: config.supabaseKey,
+        authorization: `Bearer ${token ?? config.supabaseKey}`,
+        "content-type": "application/json",
+        ...headers,
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch (error) {
+    // No `status`: the server never decided, so callers may retry or queue.
+    throw Object.assign(
+      new Error(error?.name === "AbortError" ? `${method} ${path} timed out` : `${method} ${path} could not reach the server`),
+      { cause: error },
+    );
+  } finally {
+    clearTimeout(deadline);
+  }
 
   // A 401 on a token that looked valid means the server disagrees — revoked,
   // or the device clock is off. Refresh once and retry; if the refresh itself

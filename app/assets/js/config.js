@@ -14,6 +14,12 @@ const defaults = {
   supabaseUrl: "https://sxsbeavdmfuznigslfnp.supabase.co",
   supabaseKey: "sb_publishable_BALtodXYHyXJ41amq26zhA_17o7gMTI",
 
+  /**
+   * How long any one request may take before it is abandoned. A promise that
+   * never settles is worse than an error: nothing downstream can react to it.
+   */
+  requestTimeoutMs: 12_000,
+
   /** How long a cached layout is served before a revalidation is awaited. */
   layoutFreshMs: 5 * 60 * 1000,
 

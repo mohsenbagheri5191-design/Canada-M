@@ -406,6 +406,164 @@ begin
   raise notice 'PASS domain invariants';
 end $$;
 
+-- ===========================================================================
+-- 7. Authentication provisioning
+--
+-- `raw_user_meta_data` is whatever the signup request sent. The first version
+-- of the provisioning trigger read role and organisation from it, so a
+-- self-signup could have asked for super_admin. These assert that it cannot.
+-- ===========================================================================
+
+do $$
+declare
+  v_id uuid := gen_random_uuid();
+  v_role text;
+  v_org  uuid;
+  v_refused boolean := false;
+begin
+  if to_regclass('auth.users') is null then
+    raise notice 'SKIP auth provisioning: auth schema not reachable';
+    return;
+  end if;
+
+  -- A. An uninvited signup that claims authority in user_metadata.
+  begin
+    insert into auth.users (id, instance_id, aud, role, email, encrypted_password,
+                            email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+    values (v_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+            'verify-attacker@example.invalid', crypt('x', gen_salt('bf')), now(), '{}'::jsonb,
+            '{"app_role":"super_admin","org_slug":"northstar"}'::jsonb, now(), now());
+  exception when others then
+    v_refused := true;
+  end;
+
+  if not v_refused then
+    select role, organization_id into v_role, v_org from public.app_users where id = v_id;
+    if v_role = 'super_admin' then
+      raise exception 'FAIL auth provisioning: user_metadata granted super_admin';
+    end if;
+    if v_org is not null then
+      raise exception 'FAIL auth provisioning: user_metadata placed a self-signup into a tenant';
+    end if;
+  end if;
+
+  -- B. An invitation, written by the service role into app_metadata, is honoured.
+  v_id := gen_random_uuid();
+  insert into auth.users (id, instance_id, aud, role, email, encrypted_password,
+                          email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+  values (v_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+          'verify-invited@example.invalid', crypt('x', gen_salt('bf')), null,
+          '{"app_role":"designer","org_slug":"northstar","must_change_password":true}'::jsonb,
+          '{}'::jsonb, now(), now());
+
+  select role into v_role from public.app_users where id = v_id;
+  if v_role is distinct from 'designer' then
+    raise exception 'FAIL auth provisioning: an invitation did not produce its role (got %)', v_role;
+  end if;
+
+  -- C. A user cannot promote themselves.
+  if not exists (select 1 from pg_trigger where tgname = 'guard_app_user_authority') then
+    raise exception 'FAIL auth provisioning: nothing stops a user rewriting their own role';
+  end if;
+
+  raise notice 'PASS auth provisioning: authority comes from app_metadata only';
+end $$;
+
+-- ===========================================================================
+-- 8. The rules engine
+--
+-- The engine is only trustworthy if a failing rule stops on its own and a
+-- self-triggering one terminates. Both are asserted rather than described.
+-- ===========================================================================
+
+do $$
+declare
+  v_org uuid := (select id from public.organizations order by created_at limit 1);
+  v_task uuid;
+  v_rule uuid := gen_random_uuid();
+  v_runs integer;
+  v_enabled boolean;
+begin
+  if to_regclass('public.rule_events') is null then
+    raise notice 'SKIP rules engine: not installed';
+    return;
+  end if;
+
+  -- The cron job that drives it must exist, or nothing runs in production.
+  if not exists (select 1 from cron.job where jobname = 'rules-tick') then
+    raise exception 'FAIL rules engine: no scheduled tick, so nothing would ever run';
+  end if;
+
+  insert into public.tasks (organization_id, title, status, priority)
+  values (v_org, 'verify: rules target', 'todo', 'normal')
+  returning id into v_task;
+
+  -- A rule whose only action cannot work: five runs must disable it.
+  insert into public.rules (id, organization_id, name, trigger, conditions, actions, enabled)
+  values (v_rule, v_org, 'verify: always fails',
+          '{"type":"task.updated","field":"status"}'::jsonb, '{}'::jsonb,
+          '[{"type":"set_field","params":{"field":"no_such_column","value":"x"}}]'::jsonb, true);
+
+  for i in 1..6 loop
+    update public.tasks set status = case when i % 2 = 1 then 'blocked' else 'todo' end where id = v_task;
+    perform private.drain_rule_events(100);
+  end loop;
+
+  select enabled into v_enabled from public.rules where id = v_rule;
+  if v_enabled then
+    raise exception 'FAIL rules engine: a rule that always fails was never disabled';
+  end if;
+
+  select count(*) into v_runs from public.rule_runs where rule_id = v_rule and status = 'failed';
+  if v_runs <> 5 then
+    raise exception 'FAIL rules engine: expected exactly 5 failures before disabling, got %', v_runs;
+  end if;
+
+  -- Nothing may be left running: an event stuck in `running` is an event no
+  -- worker will ever pick up again.
+  if exists (select 1 from public.rule_events where status = 'running') then
+    raise exception 'FAIL rules engine: an event was left in the running state';
+  end if;
+
+  raise notice 'PASS rules engine: a failing rule disables itself after 5 runs';
+end $$;
+
+-- A rule that triggers itself must terminate.
+do $$
+declare
+  v_org uuid := (select id from public.organizations order by created_at limit 1);
+  v_task uuid;
+  v_dead integer;
+begin
+  if to_regclass('public.rule_events') is null then return; end if;
+
+  insert into public.tasks (organization_id, title, status, priority)
+  values (v_org, 'verify: cascade target', 'todo', 'normal') returning id into v_task;
+
+  insert into public.rules (organization_id, name, trigger, conditions, actions, enabled)
+  values
+   (v_org, 'verify: ping', '{"type":"task.updated","field":"status"}'::jsonb,
+    format('{"all":[{"left":"$record.id","op":"==","right":"%s"},{"left":"$record.status","op":"==","right":"todo"}]}', v_task)::jsonb,
+    '[{"type":"set_field","params":{"field":"status","value":"review"}}]'::jsonb, true),
+   (v_org, 'verify: pong', '{"type":"task.updated","field":"status"}'::jsonb,
+    format('{"all":[{"left":"$record.id","op":"==","right":"%s"},{"left":"$record.status","op":"==","right":"review"}]}', v_task)::jsonb,
+    '[{"type":"set_field","params":{"field":"status","value":"todo"}}]'::jsonb, true);
+
+  update public.tasks set status = 'todo' where id = v_task;
+  for i in 1..15 loop perform private.drain_rule_events(200); end loop;
+
+  if exists (select 1 from public.rule_events where status = 'pending') then
+    raise exception 'FAIL rules engine: a self-triggering pair never settled';
+  end if;
+
+  select count(*) into v_dead from public.rule_events where status = 'dead';
+  if v_dead = 0 then
+    raise exception 'FAIL rules engine: the cascade guard never fired';
+  end if;
+
+  raise notice 'PASS rules engine: a self-triggering cascade is bounded and dead-lettered';
+end $$;
+
 rollback;
 
 \echo ''

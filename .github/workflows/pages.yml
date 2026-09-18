@@ -1,0 +1,61 @@
+# Publish the dashboard and the app to GitHub Pages.
+#
+# The build is a copy, not a bundle: the repository also holds migrations,
+# platform notes and an env example, and a static host pointed at the root
+# would serve all of it.
+#
+# Runs on GitHub's infrastructure rather than anywhere local, which is the
+# point — it needs no credentials of its own beyond the Pages token this
+# workflow is granted.
+name: Pages
+
+on:
+  push:
+    branches: [claude/admin-dashboard-design-ptn7z5, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; a queued run replaces an older one rather than
+# racing it, so the live site always reflects the newest push that finished.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assemble the site
+        run: bash scripts/build-site.sh
+
+      # Native ES modules resolve by path, so a missing file is a blank page
+      # rather than an error. Fail the build here instead.
+      - name: Check the entry points resolve
+        run: |
+          test -f public/index.html
+          test -f public/app/index.html
+          test -f public/app/assets/js/shared.js
+          test -f public/dashboard/index.html
+          test -f public/dashboard/assets/js/data/registry.js
+          echo "$(find public -type f | wc -l) files"
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -38,6 +38,47 @@ const page = (children) =>
   );
 
 /**
+ * The projections from table columns to component props.
+ *
+ * Written out rather than inferred, because `tasks.status` is
+ * todo/in_progress/blocked/review/done and a TaskRow state is
+ * open/doing/done/blocked. Neither vocabulary should bend to the other: the
+ * table's belongs to the domain and the component's belongs to the interface,
+ * and this is the seam where they meet.
+ */
+const TASK_MAP = {
+  title: "title",
+  note: "notes",
+  state: {
+    from: "status",
+    values: { todo: "open", in_progress: "doing", review: "doing", blocked: "blocked", done: "done" },
+    fallback: "open",
+  },
+  priority: {
+    from: "priority",
+    values: { low: "low", normal: "none", high: "high", urgent: "urgent" },
+    fallback: "none",
+  },
+  due: { from: "due_at", format: "date" },
+};
+
+const NOTE_MAP = {
+  title: "title",
+  body: "body",
+  pinned: "pinned",
+  meta: { from: "updated_at", format: "date" },
+  tags: "labels",
+};
+
+const PROJECT_MAP = {
+  name: "name",
+  client: "description",
+  status: { from: "status", values: { planning: "Planning", active: "On track", on_hold: "On hold", done: "Done", cancelled: "Cancelled" } },
+  statusTone: { from: "status", values: { planning: "info", active: "success", on_hold: "warning", done: "neutral", cancelled: "danger" }, fallback: "neutral" },
+  due: { from: "due_on", format: "date" },
+};
+
+/**
  * Screens are built fresh on each call because the renderer stamps ids and the
  * caller may hold more than one copy (the live document and a preview).
  */
@@ -62,16 +103,27 @@ export function builtinLayout() {
         glyph: "listChecks",
         isEntry: true,
         requiresRole: null,
+        sources: [
+          { id: "open", from: "tasks", where: [["status", "neq", "done"]], order: "due_at.asc.nullslast", limit: 25 },
+          { id: "done", from: "tasks", where: [["status", "eq", "done"]], order: "completed_at.desc", limit: 10 },
+        ],
         root: withIds(
           page([
             n("Header", { title: "Today", showBack: false, showAvatar: true, size: { height: 52 } }),
-            n("TaskList", { title: "Due today", showCount: true, showProgress: true }),
             n("TaskList", {
-              title: "Later",
+              title: "Open",
+              showCount: true,
+              countMode: "total",
               showProgress: false,
-              items: [
-                { title: "Plan the week", state: "open", priority: "none", due: "Mon", assignee: "" },
-              ],
+              items: { $bind: "query.open", map: TASK_MAP },
+              emptyText: "Nothing open. Good.",
+            }),
+            n("TaskList", {
+              title: "Recently done",
+              showCount: false,
+              showProgress: false,
+              items: { $bind: "query.done", map: TASK_MAP },
+              emptyText: "Nothing finished yet",
             }),
           ]),
         ),
@@ -83,11 +135,18 @@ export function builtinLayout() {
         glyph: "layers",
         isEntry: false,
         requiresRole: null,
+        sources: [{ id: "projects", from: "projects", order: "due_on.asc.nullslast", limit: 25 }],
         root: withIds(
           page([
             n("Header", { title: "Projects", showBack: false, showAvatar: true, size: { height: 52 } }),
-            n("SearchBar", { placeholder: "Search projects", showFilter: false }),
-            n("ProjectCard", { showRing: false }),
+            n("Repeater", {
+              source: "query.projects",
+              component: "ProjectCard",
+              map: PROJECT_MAP,
+              props: { showRing: false },
+              gap: 10,
+              emptyText: "No projects yet",
+            }),
           ]),
         ),
       },
@@ -98,11 +157,18 @@ export function builtinLayout() {
         glyph: "note",
         isEntry: false,
         requiresRole: null,
+        sources: [{ id: "notes", from: "notes", order: "pinned.desc", limit: 30 }],
         root: withIds(
           page([
             n("Header", { title: "Notes", showBack: false, showAvatar: true, size: { height: 52 } }),
-            n("SearchBar", { placeholder: "Search notes", showFilter: false }),
-            n("NoteCard", {}),
+            n("Repeater", {
+              source: "query.notes",
+              component: "NoteCard",
+              map: NOTE_MAP,
+              props: { excerptLines: 3, showAccentBar: false },
+              gap: 10,
+              emptyText: "No notes yet",
+            }),
           ]),
         ),
       },

@@ -17,6 +17,8 @@ import { getUser, onAuthChange, signOut, select } from "./supabase.js";
 import { createApp, notice, button } from "./app.js";
 import { createRouter } from "./runtime/router.js";
 import { createLayoutProvider } from "./runtime/layout.js";
+import { createDataProvider } from "./runtime/data.js";
+import { createActions } from "./runtime/actions.js";
 import { createTelemetry } from "./runtime/telemetry.js";
 import { applyTheme } from "./runtime/theme.js";
 import { previewToken, resolvePreview, PREVIEW_REASONS } from "./runtime/preview.js";
@@ -32,6 +34,8 @@ let app = null;
 let telemetry = null;
 let provider = null;
 let profile = null;
+let data = null;
+let actions = null;
 
 const router = createRouter({ onNavigate: (screen, meta) => app?.paint(screen, meta) });
 
@@ -49,6 +53,10 @@ async function startPreview(token) {
 
   try {
     const layout = await resolvePreview(token);
+    // A preview has no session, so it has no readable sources: resolve_preview
+    // returns a layout only. Bound lists render their empty state, which is the
+    // honest thing to show a reviewer who is not in the tenant.
+    app.setRuntime({ data: createDataProvider({ dataSources: [] }), actions: null });
     app.setLayout(layout);
     app.showBanner("preview", `Preview · ${layout.designName}${layout.versionNumber ? ` v${layout.versionNumber}` : ""} · read only`);
     router.start();
@@ -86,6 +94,21 @@ async function startApp() {
 
   provider = createLayoutProvider({
     onChange: (layout) => {
+      // The allowlist travels with the layout, so the provider is rebuilt
+      // whenever it changes — a feature switched off must take its data source
+      // away at the same moment it takes its screens away.
+      data = createDataProvider({
+        dataSources: layout.dataSources ?? [],
+        onChange: () => app.redraw(),
+        onError: (error, source) => console.warn(`[app] source "${source?.id}" failed`, error),
+      });
+      actions = createActions({
+        data,
+        telemetry,
+        onError: (error) => console.warn("[app] write failed", error),
+      });
+
+      app.setRuntime({ data, actions });
       app.setLayout(layout, { userRole: profile?.role ?? null });
       app.paint(router.active, { reason: "match" });
     },
@@ -107,6 +130,7 @@ async function startApp() {
   } catch {
     profile = null;
   }
+  app.setProfile(profile);
 
   await provider.load();
   router.start();
@@ -128,6 +152,7 @@ async function startApp() {
 
 async function leave() {
   await telemetry?.flush();
+  data?.clear();
   await provider?.forget();
   await signOut();
   location.hash = "";

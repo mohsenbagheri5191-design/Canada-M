@@ -26,6 +26,7 @@
 
 import { el } from "../core/dom.js";
 import { icon } from "../core/icons.js";
+import { readScope, projectRow, sourceIdFromPath } from "../render/project.js";
 
 /* ---------------------------------------------------------------------------
    Shared prop fragments
@@ -347,6 +348,63 @@ function tagPill(text, colors, colour = null) {
   );
 }
 
+/**
+ * The pin on a note.
+ *
+ * Always rendered once the note is bound, even when unpinned — a control that
+ * only appears on the notes already pinned gives nobody a way to pin the rest.
+ * Unbound and unpinned, it stays absent, because in the studio it would only be
+ * decoration.
+ */
+function pinMark(p, tone, colors) {
+  if (!p.pinned && !p.$row) return null;
+  const node = el(
+    "span",
+    { style: { display: "flex", flexShrink: "0", marginTop: "1px", color: p.pinned ? tone : colors.textTertiary } },
+    icon("pin", 14),
+  );
+  if (p.$row) {
+    node.dataset.action = "note.pin";
+    node.style.cursor = "pointer";
+    node.setAttribute("role", "button");
+    node.setAttribute("tabindex", "0");
+    node.setAttribute("aria-label", p.pinned ? `Unpin "${p.title}"` : `Pin "${p.title}"`);
+    node.setAttribute("aria-pressed", String(Boolean(p.pinned)));
+    if (!p.pinned) node.style.opacity = "0.4";
+  }
+  return node;
+}
+
+/**
+ * The inspector edits a mapping as a list of rows, but a document may also
+ * carry it as a plain object — which is what a hand-authored layout and the
+ * built-in one both do. Accept either.
+ */
+function normaliseMapping(map) {
+  if (!map) return null;
+  if (Array.isArray(map)) {
+    const out = {};
+    for (const entry of map) {
+      if (entry?.to && entry?.from) out[entry.to] = entry.from;
+    }
+    return Object.keys(out).length ? out : null;
+  }
+  return Object.keys(map).length ? map : null;
+}
+
+/** Fixed props, in the same two shapes. */
+function normaliseFixed(props) {
+  if (!props) return {};
+  if (Array.isArray(props)) {
+    const out = {};
+    for (const entry of props) {
+      if (entry?.key) out[entry.key] = entry.value;
+    }
+    return out;
+  }
+  return props;
+}
+
 /** A due date, tinted red once it is past. */
 function dueChip(text, overdue, colors) {
   const tone = overdue ? colors.danger : colors.textSecondary;
@@ -522,7 +580,10 @@ const f = {
   spacing: (label, opts = {}) => ({ control: "spacing", label, ...opts }),
   radius: (label = "Radius") => ({ control: "radius", label }),
   shadow: (label = "Shadow") => ({ control: "shadow", label }),
-  items: (label, opts = {}) => ({ control: "items", label, ...opts }),
+  // Bindable, because a list of records is the single most useful thing to
+  // point at a query. A bound `items` resolves to the source's rows, projected
+  // into this component's item shape by the binding's `map`.
+  items: (label, opts = {}) => ({ control: "items", label, bindable: true, ...opts }),
   chips: (label, options, opts = {}) => ({ control: "chips", label, options, ...opts }),
 };
 
@@ -1643,6 +1704,10 @@ export const registry = {
       overdue: false,
       assignee: "",
       tags: [],
+      // Filled in by a binding's projection, never authored by hand. They are
+      // the row's identity, which is why they are not in `fields`.
+      $row: null,
+      $source: null,
       showHandle: false,
       rowPadding: 12,
       radius: 12,
@@ -1678,10 +1743,25 @@ export const registry = {
       const c = ctx.theme.colors;
       const done = p.state === "done";
 
+      // A bound row carries $row/$source through the projection. Surfacing them
+      // as data attributes is the whole interface between this component and an
+      // app that wants taps to do something: the registry declares the
+      // affordance, the runtime decides what it means. Nothing here knows about
+      // a network, which is why the studio preview stays inert.
+      const mark = taskMark(p.state, c);
+      if (p.$row) {
+        mark.dataset.action = "task.toggle";
+        mark.style.cursor = "pointer";
+        mark.setAttribute("role", "button");
+        mark.setAttribute("tabindex", "0");
+        mark.setAttribute("aria-label", done ? `Mark "${p.title}" not done` : `Mark "${p.title}" done`);
+        mark.setAttribute("aria-pressed", String(done));
+      }
+
       const node = el(
         "div",
         p.showHandle ? el("span", { style: { color: c.textTertiary, display: "flex", flexShrink: "0", cursor: "grab" } }, icon("dragHandle", 14)) : null,
-        taskMark(p.state, c),
+        mark,
         el(
           "div",
           { style: { minWidth: 0, flex: "1 1 auto", display: "flex", flexDirection: "column", gap: "2px" } },
@@ -1717,6 +1797,10 @@ export const registry = {
         padding: `${p.rowPadding ?? 12}px`,
         opacity: done ? "0.72" : "1",
       });
+      if (p.$row) {
+        node.dataset.row = p.$row;
+        if (p.$source) node.dataset.source = p.$source;
+      }
       applyBox(node, p, ctx, { level: "raised", type: "TaskRow" });
       return node;
     },
@@ -1732,6 +1816,10 @@ export const registry = {
     props: {
       title: "This week",
       showCount: true,
+      // A list filtered to only open work shows "0/8", which reads as "none of
+      // these are done" when what it means is "there are eight". `countMode`
+      // makes the difference explicit rather than inferring it from the data.
+      countMode: "progress",
       showProgress: true,
       gap: 8,
       rowPadding: 12,
@@ -1747,6 +1835,10 @@ export const registry = {
     fields: {
       title: f.text("Group title"),
       showCount: f.bool("Show count"),
+      countMode: f.segmented("Count as", [
+        { value: "progress", label: "Done / total" },
+        { value: "total", label: "Total" },
+      ]),
       showProgress: f.bool("Progress bar"),
       items: f.items("Tasks", {
         shape: [
@@ -1802,7 +1894,11 @@ export const registry = {
             p.title ? el("span", { style: { fontSize: "13px", fontWeight: "600", color: c.text, letterSpacing: "0.01em" } }, String(p.title)) : null,
             el("span", { style: { flex: "1 1 auto" } }),
             p.showCount && items.length
-              ? el("span", { style: { fontSize: "12px", color: c.textTertiary, fontVariantNumeric: "tabular-nums" } }, `${complete}/${items.length}`)
+              ? el(
+                  "span",
+                  { style: { fontSize: "12px", color: c.textTertiary, fontVariantNumeric: "tabular-nums" } },
+                  p.countMode === "total" ? String(items.length) : `${complete}/${items.length}`,
+                )
               : null,
           ),
         );
@@ -1839,6 +1935,10 @@ export const registry = {
           { ...registry.TaskRow.props, ...item, state, rowPadding: p.rowPadding ?? 12, radius: p.radius ?? 12, tags: item.tags ?? [] },
           ctx,
         );
+        // Stamped here because the renderer only marks nodes it walks itself,
+        // and these are produced inside another component's render. Without it
+        // a row is invisible to anything selecting by component type.
+        row.dataset.nodeType = "TaskRow";
         node.appendChild(row);
       }
       return node;
@@ -2145,6 +2245,8 @@ export const registry = {
       meta: "Edited 2h ago",
       tags: ["meeting", "scope"],
       pinned: true,
+      $row: null,
+      $source: null,
       accent: "",
       showAccentBar: true,
       padding: { top: 14, right: 14, bottom: 14, left: 14 },
@@ -2188,7 +2290,7 @@ export const registry = {
           "div",
           { style: { display: "flex", alignItems: "flex-start", gap: "8px" } },
           el("div", { style: { fontSize: "14.5px", fontWeight: "620", color: c.text, flex: "1 1 auto", minWidth: 0, letterSpacing: "-0.005em" } }, String(p.title ?? "")),
-          p.pinned ? el("span", { style: { color: accent || c.primary, display: "flex", flexShrink: "0", marginTop: "1px" } }, icon("pin", 14)) : null,
+          pinMark(p, accent || c.primary, c),
         ),
         p.body ? body : null,
         (Array.isArray(p.tags) && p.tags.length) || p.meta
@@ -2203,6 +2305,10 @@ export const registry = {
       );
 
       node.style.position = "relative";
+      if (p.$row) {
+        node.dataset.row = p.$row;
+        if (p.$source) node.dataset.source = p.$source;
+      }
       applyBox(node, p, ctx, { level: "raised", type: "NoteCard" });
       return node;
     },
@@ -2819,6 +2925,90 @@ export const registry = {
         );
         Object.assign(panel.style, { padding: `${p.rowPadding ?? 13}px`, ...ctx.surface("raised", { radius: p.radius ?? 12 }) });
         node.appendChild(panel);
+      }
+      return node;
+    },
+  },
+
+  Repeater: {
+    label: "Repeat",
+    category: "Data",
+    glyph: "layers",
+    description: "Renders one component per row of a data source.",
+    acceptsChildren: false,
+    resizable: { width: true, height: false },
+    props: {
+      source: "query.tasks",
+      component: "TaskRow",
+      map: {},
+      props: {},
+      gap: 10,
+      direction: "vertical",
+      columns: 1,
+      limit: 0,
+      emptyText: "Nothing here yet",
+    },
+    fields: {
+      source: f.text("Source path"),
+      component: f.text("Component"),
+      gap: f.number("Gap", { min: 0, max: 32, unit: "px" }),
+      direction: f.segmented("Direction", [
+        { value: "vertical", icon: "rows", tip: "Stacked" },
+        { value: "horizontal", icon: "columns", tip: "Side by side" },
+      ]),
+      columns: f.number("Columns", { min: 1, max: 4 }),
+      limit: f.number("Limit", { min: 0, max: 200 }),
+      emptyText: f.text("Empty message"),
+      map: f.items("Field mapping", { shape: [{ key: "to", label: "Prop" }, { key: "from", label: "Column" }] }),
+      props: f.items("Fixed props", { shape: [{ key: "key", label: "Prop" }, { key: "value", label: "Value" }] }),
+    },
+    render(p, ctx) {
+      const c = ctx.theme.colors;
+      const node = el("div");
+
+      // `source` is a scope path, not a URL. The runtime decides what a path
+      // resolves to and refuses anything the server did not offer; this
+      // component only ever reads what is already in hand.
+      const rows = readScope(p.source, ctx.scope);
+      const list = Array.isArray(rows) ? (p.limit ? rows.slice(0, p.limit) : rows) : [];
+
+      if (p.direction === "horizontal") {
+        Object.assign(node.style, { display: "flex", gap: `${p.gap ?? 10}px`, overflowX: "auto" });
+      } else if ((p.columns ?? 1) > 1) {
+        Object.assign(node.style, { display: "grid", gridTemplateColumns: `repeat(${p.columns}, minmax(0, 1fr))`, gap: `${p.gap ?? 10}px` });
+      } else {
+        Object.assign(node.style, { display: "flex", flexDirection: "column", gap: `${p.gap ?? 10}px` });
+      }
+
+      const def = registry[p.component];
+      if (!def) {
+        // Naming a component that does not exist is an authoring mistake, and
+        // silence would leave an empty box nobody can explain.
+        return el("div", { style: { padding: "12px", fontSize: "12px", color: c.textTertiary } }, `Unknown component "${p.component}"`);
+      }
+
+      if (!list.length) {
+        return el("div", { style: { padding: "18px", textAlign: "center", color: c.textTertiary, fontSize: "13px" } }, String(p.emptyText || "Nothing here yet"));
+      }
+
+      const source = sourceIdFromPath(p.source);
+      const mapping = normaliseMapping(p.map);
+      const fixed = normaliseFixed(p.props);
+
+      for (const row of list) {
+        const item = mapping ? projectRow(row, mapping, source) : { ...row, $row: row?.id ?? null, $source: source };
+        let child;
+        try {
+          child = def.render({ ...def.props, ...item, ...fixed }, ctx, []);
+        } catch (error) {
+          // One bad row must not take the list down with it.
+          console.error(`[Repeater] "${p.component}" threw on a row`, error);
+          continue;
+        }
+        if (child instanceof Node) {
+          child.dataset.nodeType = p.component;
+          node.appendChild(child);
+        }
       }
       return node;
     },

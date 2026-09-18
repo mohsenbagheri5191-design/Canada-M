@@ -13,6 +13,7 @@
  */
 
 import { el } from "../core/dom.js";
+import { readScope, FORMATTERS, formatterNames, projectRow, sourceIdFromPath } from "./project.js";
 import { getDef, resolveToken } from "../data/registry.js";
 import { createSurfaceResolver } from "../data/styles.js";
 
@@ -85,38 +86,9 @@ function warnOnce(key, message) {
    Binding resolution
    --------------------------------------------------------------------------- */
 
-/**
- * Read a dotted path out of the data scope.
- * Scopes: user, org, route, query.<sourceId>, state, theme.
- */
-function readScope(path, scope) {
-  if (!path) return undefined;
-  let node = scope;
-  for (const key of String(path).split(".")) {
-    if (node === null || node === undefined) return undefined;
-    node = node[key];
-  }
-  return node;
-}
-
-const FORMATTERS = {
-  none: (v) => v,
-  text: (v) => String(v ?? ""),
-  currency: (v) => (Number.isFinite(Number(v)) ? new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(Number(v)) : v),
-  number: (v) => (Number.isFinite(Number(v)) ? new Intl.NumberFormat("en-CA").format(Number(v)) : v),
-  percent: (v) => (Number.isFinite(Number(v)) ? `${Math.round(Number(v) * 100)}%` : v),
-  date: (v) => {
-    const d = new Date(v);
-    return Number.isNaN(d.getTime()) ? v : d.toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" });
-  },
-  time: (v) => {
-    const d = new Date(v);
-    return Number.isNaN(d.getTime()) ? v : d.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" });
-  },
-  uppercase: (v) => String(v ?? "").toUpperCase(),
-};
-
-export const formatterNames = Object.keys(FORMATTERS);
+// readScope, FORMATTERS and projectRow live in ./project.js so the registry
+// can use them too without importing this file, which imports the registry.
+export { formatterNames };
 
 /** Resolve one prop value, which may be a literal, a binding or a token. */
 export function resolveValue(value, ctx) {
@@ -127,6 +99,16 @@ export function resolveValue(value, ctx) {
   if (typeof value === "object") {
     if (Object.hasOwn(value, "$bind")) {
       const raw = readScope(value.$bind, ctx.scope);
+
+      // An empty list is a real answer — "no tasks due" — and must reach the
+      // component so it can render its own empty state, rather than being
+      // treated as a missing value and replaced by the fallback.
+      if (Array.isArray(raw)) {
+        const rows = value.limit ? raw.slice(0, value.limit) : raw;
+        if (!value.map) return rows;
+        return rows.map((row) => projectRow(row, value.map, sourceIdFromPath(value.$bind)));
+      }
+
       if (raw === undefined || raw === null || raw === "") return value.fallback ?? "";
       const format = FORMATTERS[value.format] || FORMATTERS.none;
       try {

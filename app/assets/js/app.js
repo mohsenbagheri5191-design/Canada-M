@@ -114,6 +114,12 @@ function tabBar(screens, activeRoute, navigate) {
    --------------------------------------------------------------------------- */
 
 export function createApp({ root, router, telemetry, onSignOut, onRetry }) {
+  // Set after construction and replaced whenever the layout's allowlist
+  // changes, so they are held in a variable rather than destructured — a getter
+  // on the argument object would be read once, at destructuring time, and
+  // capture the undefined that existed before the first layout arrived.
+  let data = null;
+  let actions = null;
   const stage = el("main.stage", { id: "stage" });
   const banners = el("div.banners");
   const chrome = el("div.chrome");
@@ -122,6 +128,51 @@ export function createApp({ root, router, telemetry, onSignOut, onRetry }) {
 
   let layout = null;
   let banner = null;
+
+  /**
+   * Taps are delegated from the stage rather than bound per node.
+   *
+   * The registry's components are pure functions of props — they have to be,
+   * because the studio renders them too and a component that opened a socket
+   * would do it inside the editor. So a component marks a control with
+   * `data-action` and the row it belongs to with `data-row`, and the meaning of
+   * that mark lives here, where the network does.
+   */
+  async function onStageActivate(event) {
+    const control = event.target.closest?.("[data-action]");
+    if (!control || !actions) return;
+
+    const host = control.closest("[data-row]");
+    const rowId = host?.dataset.row;
+    const sourceId = host?.dataset.source;
+    if (!rowId || !sourceId) return;
+
+    event.preventDefault();
+    control.setAttribute("aria-busy", "true");
+
+    const pressed = control.getAttribute("aria-pressed") === "true";
+    const result =
+      control.dataset.action === "task.toggle"
+        ? await actions.setTaskDone(sourceId, rowId, !pressed)
+        : control.dataset.action === "note.pin"
+          ? await actions.setNotePinned(sourceId, rowId, !pressed)
+          : { ok: false, reason: "unknown-action" };
+
+    control.removeAttribute("aria-busy");
+
+    if (!result.ok && result.reason === "refused") {
+      showBanner("warn", "That change could not be saved.");
+    } else if (!result.ok && result.reason === "read-only") {
+      showBanner("info", "You do not have permission to change that.");
+    }
+  }
+
+  stage.addEventListener("click", onStageActivate);
+  stage.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    if (!event.target.closest?.("[data-action]")) return;
+    onStageActivate(event);
+  });
 
   function showBanner(kind, text, action = null) {
     if (banner?.kind === kind && banner?.text === text) return;
@@ -169,22 +220,64 @@ export function createApp({ root, router, telemetry, onSignOut, onRetry }) {
       );
     }
 
+    draw(screen, { resetScroll: true });
+
+    chrome.replaceChildren(tabBar(router.screens, screen.route, (path) => router.navigate(path)) ?? el("span"));
+    telemetry?.screenView(screen.route, { screenId: screen.id });
+
+    // Rows arrive after the first paint. The screen is already on screen with
+    // its empty states showing, which is the right thing to look at while a
+    // query runs — better than a spinner that hides the shape of the page.
+    data?.loadFor(screen);
+  }
+
+  /**
+   * Paint the active screen from the current layout and data.
+   *
+   * Separate from `paint` so a data update can redraw without re-running
+   * navigation: re-recording a screen view every time a checkbox flips would
+   * make the Paths tab count taps as visits.
+   */
+  function draw(screen, { resetScroll = false } = {}) {
+    if (!layout || !screen) return;
+    const offset = stage.scrollTop;
+
     const body = renderScreenSafely(screen, {
       theme: layout.theme,
-      scope: { user: {}, org: layout.settings ?? {} },
+      scope: {
+        user: profile ?? {},
+        org: layout.settings ?? {},
+        route: { params: {} },
+        query: data?.query() ?? {},
+      },
       onError: (error) => telemetry?.renderError(screen.route, error?.message ?? "render failed"),
       onRetry,
       onHome: () => router.navigate("/", { replace: true }),
     });
 
     stage.replaceChildren(body);
-    stage.scrollTop = 0;
-
-    chrome.replaceChildren(tabBar(router.screens, screen.route, (path) => router.navigate(path)) ?? el("span"));
-    telemetry?.screenView(screen.route, { screenId: screen.id });
+    stage.scrollTop = resetScroll ? 0 : offset;
   }
 
+  let profile = null;
+
   return {
+    /** The signed-in user, for `scope.user` in bindings. */
+    setProfile(next) {
+      profile = next;
+    },
+
+    /** The data provider and writes for the current layout's allowlist. */
+    setRuntime({ data: nextData = null, actions: nextActions = null } = {}) {
+      data = nextData;
+      actions = nextActions;
+    },
+
+    /** Redraw the active screen in place, without re-recording a screen view. */
+    redraw() {
+      draw(router.active);
+    },
+
     /** Point the app at a resolved layout. Safe to call on every revalidation. */
     setLayout(next, { userRole = null } = {}) {
       const changed = layout && layout.designVersionId !== next.designVersionId;

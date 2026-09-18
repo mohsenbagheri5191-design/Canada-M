@@ -300,6 +300,27 @@ export const blocks = [
     tree: () => n("TaskRow", { priority: "high", assignee: "Maya Chen" }),
   },
   {
+    key: "tasks-from-data",
+    group: "tasks",
+    name: "Tasks from a source",
+    description: "One row per record, straight from a bound query.",
+    tags: ["repeat", "bind", "data", "list"],
+    tree: () =>
+      n("Repeater", {
+        source: "query.tasks",
+        component: "TaskRow",
+        gap: 8,
+        map: [
+          { to: "title", from: "title" },
+          { to: "note", from: "notes" },
+          { to: "state", from: "status" },
+          { to: "priority", from: "priority" },
+          { to: "due", from: "due_at" },
+        ],
+        emptyText: "Nothing to show",
+      }),
+  },
+  {
     key: "tasks-board",
     group: "tasks",
     name: "Board",

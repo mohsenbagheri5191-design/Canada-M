@@ -32,6 +32,14 @@ function shape(payload, { source, fetchedAt }) {
     return {
       ...builtin,
       theme: normaliseTheme(builtin.theme),
+      // The screens are the app's own, but everything about *this user* still
+      // comes from the server. The built-in layout binds to tasks and notes
+      // like any other design, so dropping the allowlist here would leave it
+      // rendering empty states against data the user can plainly read.
+      features: payload?.features ?? builtin.features,
+      dataSources: payload?.dataSources ?? [],
+      organization: payload?.organization ?? null,
+      settings: payload?.settings ?? builtin.settings,
       trace: payload?.trace ?? builtin.trace,
       source,
       fetchedAt,

@@ -166,16 +166,38 @@ rebuild.
 
 ---
 
+## Offline writes
+
+A write that fails is not one thing. The outbox exists because the difference
+matters more than the failure:
+
+- **The server never decided** — a dropped connection, a timeout, a 5xx. The
+  change stays on screen and the write is queued, because it is going to be
+  sent. Taking it away and putting it back when the signal returns would be a
+  worse lie than leaving it.
+- **The server decided, and said no** — 401, 403, 404, 409, 422. Rolled back
+  immediately. Retrying cannot change a permission, and a queue that keeps
+  trying only produces the same refusal for the rest of the session.
+
+Entries live in IndexedDB, so a phone that loses signal in a basement and gets
+closed in a van delivers its work when it next sees a network. Repeated taps on
+one row collapse to a single final state rather than stacking conflicting
+updates.
+
+Every request is also bounded by `requestTimeoutMs`. A server that accepts the
+connection and then never answers used to leave the promise unsettled — the
+write neither succeeded nor failed, the outbox never saw it, and the user
+watched a change that was going nowhere.
+
+---
+
 ## Not built yet
 
-- **Data.** The components render their authored sample content. Binding a
-  `TaskList` to the `tasks` table is the next piece, and the renderer already has
-  the `scope` and `resolveValue` machinery for it.
-- **Writes.** Nothing in the app mutates anything: no completing a task, no
-  writing a note.
-- **Auth flows.** Sign-in works. Invite, password reset and "must change
-  password" do not exist, and there is no trigger creating an `app_users` row
-  when an `auth.users` row appears.
-- **Offline writes.** The layout is cached; a queued mutation is not.
-- **Issuing preview links from the dashboard.** The function exists; the Design
-  Studio's "Preview link" button does not call it yet.
+- **Creating and editing.** The app completes and reopens tasks and pins notes.
+  It cannot yet write a new note or edit one.
+- **Password reset and forced change.** `complete_password_change()` exists in
+  the database and `must_change_password` is set on every invited account, but
+  the app does not yet show the change screen.
+- **Search.** `notes.search` is a generated tsvector and nothing queries it.
+- **Push notifications.** The rules engine records `send_push` as skipped,
+  honestly, because no provider is configured.

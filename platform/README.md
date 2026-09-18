@@ -181,14 +181,11 @@ cannot be signed in with.
 
 ## Not built yet
 
-- **Edge Functions.** No HTTP API exists. The dashboard's `db.api.js` expects
-  `GET /api/v1/bootstrap` and the families listed in `dashboard/INTEGRATION.md`.
-- **Auth flows.** Supabase Auth is available but there is no invite, no
-  password reset, no session UI, and no trigger creating an `app_users` row when
-  an `auth.users` row appears.
-- **App data.** The app renders, but its components still show authored sample
-  content; nothing is bound to `tasks`, `notes` or `projects` yet, and the app
-  writes nothing back.
-- **Rules execution.** Tables and run log exist; no worker, no scheduler.
-- **entity_configs rows.** The tables exist; App Data cannot see them until
-  each is described.
+- **A REST API.** The app talks to PostgREST directly, which is enough for it.
+  `dashboard/db.api.js` still expects a `/api/v1` that does not exist, so the
+  dashboard runs on seeded data.
+- **Password reset.** `complete_password_change()` exists and every invited
+  account is flagged; no screen calls it yet.
+- **Email and push delivery.** The rules engine records both as skipped with
+  the reason rather than claiming a delivery nobody can find.
+- **A second Edge Function.** Only `invite-user` is deployed.

@@ -45,7 +45,12 @@ jobs:
           test -f public/dashboard/assets/js/data/registry.js
           echo "$(find public -type f | wc -l) files"
 
+      # Pages had never been enabled on this repository, so the first run failed
+      # with a 404 from the Pages API. `enablement` turns it on with the Actions
+      # build type, which is why this workflow needs `pages: write`.
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: public

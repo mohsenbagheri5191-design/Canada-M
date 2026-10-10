@@ -30,3 +30,5 @@ Thumbs.db
 .vscode/
 *.swp
 public/
+tests/e2e/.out/
+tests/e2e/node_modules/

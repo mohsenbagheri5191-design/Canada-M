@@ -1,0 +1,12 @@
+{
+  "name": "canada-m-e2e",
+  "private": true,
+  "type": "module",
+  "description": "Browser suites for the design dashboard and the app. No network or credentials needed.",
+  "scripts": {
+    "test": "node run-all.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}

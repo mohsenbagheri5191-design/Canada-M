@@ -22,6 +22,10 @@ cp -R "$root/dashboard" "$out/dashboard"
 test -f "$out/dashboard/assets/js/data/registry.js"
 test -f "$out/app/assets/js/shared.js"
 
+# GitHub Pages runs Jekyll unless told not to, and Jekyll skips any path that
+# starts with an underscore or that it does not recognise. Opt out.
+touch "$out/.nojekyll"
+
 find "$out" -name ".DS_Store" -delete
 
 echo "built $(find "$out" -type f | wc -l | tr -d ' ') files into public/"

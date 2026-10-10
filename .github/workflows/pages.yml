@@ -1,32 +1,32 @@
 # Publish the dashboard and the app to GitHub Pages.
 #
-# The build is a copy, not a bundle: the repository also holds migrations,
-# platform notes and an env example, and a static host pointed at the root
-# would serve all of it.
+# The site is served from the `gh-pages` branch, so this workflow builds the
+# site and force-pushes it there. It deliberately does not use
+# actions/configure-pages + deploy-pages: those need the Pages API to create or
+# reconfigure the site, which the Actions token is refused ("Resource not
+# accessible by integration"). Pushing a branch only needs `contents: write`.
 #
-# Runs on GitHub's infrastructure rather than anywhere local, which is the
-# point — it needs no credentials of its own beyond the Pages token this
-# workflow is granted.
+# The build is a copy, not a bundle: the repository also holds a second product
+# (Amazon Market Research Pro: extension/, admin/, supabase/) plus migrations
+# and notes, and a host pointed at the root would serve all of it.
 name: Pages
 
 on:
   push:
-    branches: [claude/admin-dashboard-design-ptn7z5, main]
+    branches: [claude/admin-dashboard-design-ptn7z5]
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
-# One deployment at a time; a queued run replaces an older one rather than
-# racing it, so the live site always reflects the newest push that finished.
+# One publish at a time; a newer push replaces an older one rather than racing
+# it, so the live site always reflects the newest push that finished.
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,32 +35,28 @@ jobs:
         run: bash scripts/build-site.sh
 
       # Native ES modules resolve by path, so a missing file is a blank page
-      # rather than an error. Fail the build here instead.
+      # rather than an error. Fail here instead.
       - name: Check the entry points resolve
         run: |
           test -f public/index.html
+          test -f public/.nojekyll
           test -f public/app/index.html
           test -f public/app/assets/js/shared.js
           test -f public/dashboard/index.html
           test -f public/dashboard/assets/js/data/registry.js
           echo "$(find public -type f | wc -l) files"
 
-      # Pages had never been enabled on this repository, so the first run failed
-      # with a 404 from the Pages API. `enablement` turns it on with the Actions
-      # build type, which is why this workflow needs `pages: write`.
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: public
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+      # The deploy branch carries no history worth keeping, so it is rebuilt
+      # from scratch each time. Pushes made with GITHUB_TOKEN do not start other
+      # workflows, so this cannot loop.
+      - name: Publish to gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd public
+          git init -q -b gh-pages
+          git add -A
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -q -m "Publish ${GITHUB_SHA::7} from ${GITHUB_REF_NAME}"
+          git push -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages

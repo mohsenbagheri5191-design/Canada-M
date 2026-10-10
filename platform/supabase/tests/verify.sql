@@ -537,8 +537,10 @@ declare
 begin
   if to_regclass('public.rule_events') is null then return; end if;
 
+  -- Not 'todo': both rules fire only when the status actually changes, so a
+  -- task that starts in 'todo' and is set to 'todo' never starts the chain.
   insert into public.tasks (organization_id, title, status, priority)
-  values (v_org, 'verify: cascade target', 'todo', 'normal') returning id into v_task;
+  values (v_org, 'verify: cascade target', 'in_progress', 'normal') returning id into v_task;
 
   insert into public.rules (organization_id, name, trigger, conditions, actions, enabled)
   values

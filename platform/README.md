@@ -23,26 +23,16 @@ product on the same account. Nothing here touches it.
 
 ## What is live
 
-Seven migrations, applied and verified:
-
-| Migration | What it adds |
+| Path | What it is |
 |---|---|
-| `core_tenancy_and_users` | `organizations`, `app_users`, `org_settings`, `audit_log` |
-| `designs_versions_assignments` | `designs`, `design_versions`, `routes`, `design_assignments`, `path_events` |
-| `app_data_features_rules` | `features`, `feature_assignments`, `collections`, `records`, `entity_configs`, `rules`, `rule_runs` |
-| `domain_projects_tasks_notes` | `projects`, `tasks`, `notes`, `customers`, `jobs` |
-| `row_level_security` | RLS on all 21 tables, role helpers, per-tenant policies |
-| `resolve_layout` | the resolution rule and its two callable wrappers |
-| `lock_down_function_execute` | closes the default `PUBLIC` grant on every `SECURITY DEFINER` function |
-| `preview_tokens` | share links for an unpublished design version, and the anon-callable resolver behind them |
-| `lock_down_preview_grants` | closes the named `anon` grants Supabase adds on top of the `PUBLIC` one |
+| [`supabase/migrations/`](supabase/migrations/) | all 24 applied migrations, identical to the live history (checked by md5) |
+| [`supabase/MIGRATIONS.md`](supabase/MIGRATIONS.md) | what each migration does and why, and how to rebuild elsewhere |
+| [`supabase/seed.sql`](supabase/seed.sql) | the demo tenants, designs, projects, tasks and notes — no accounts |
+| [`supabase/functions/invite-user/`](supabase/functions/invite-user/) | the one Edge Function, as deployed |
+| [`supabase/tests/verify.sql`](supabase/tests/verify.sql) | the invariants the system rests on, in a rolled-back transaction |
 
-Supabase's migration history is the authoritative copy. To vendor them here:
-
-```sh
-supabase link --project-ref sxsbeavdmfuznigslfnp
-supabase db pull            # writes supabase/migrations/*.sql
-```
+23 tables in `public`, all with RLS. The rules engine runs from a `pg_cron` job
+named `rules-tick`, every minute.
 
 ---
 
@@ -172,10 +162,15 @@ regress.
 ## Seed data
 
 Two tenants exist for testing: **Northstar Projects** (`northstar`) and
-**BrightRoof Studio** (`brightroof`), with one `app_user` each, two features
-(`notes` on for Northstar, `timesheets` off for both) and one published design
-with three screens. The passwords on those auth users are placeholders and
-cannot be signed in with.
+**BrightRoof Studio** (`brightroof`), two features (`notes` on for Northstar,
+`timesheets` off for both), and one design, *Northstar Workspace*, whose v3 is
+published and bound to the real `tasks`, `projects` and `notes` tables (v1 is
+archived, v2 is a draft). `seed.sql` recreates all of it.
+
+The seeded people, `maya@northstar.ca` and `daniel@brightroof.ca`, have no
+sign-in identity and cannot log in. One working account exists for testing,
+`agent@northstar.test` (org_admin, Northstar). Its password is not in this
+repository; the owner hands it over privately.
 
 ---
 
@@ -189,3 +184,8 @@ cannot be signed in with.
 - **Email and push delivery.** The rules engine records both as skipped with
   the reason rather than claiming a delivery nobody can find.
 - **A second Edge Function.** Only `invite-user` is deployed.
+- **The invite audit row.** `invite-user` writes its `audit_log` entry with the
+  caller's token, but `audit_log` has a read policy and no insert policy, so the
+  write is refused and the function ignores the refusal. Invitations work; they
+  are just not audited. Write the row with the service role inside the
+  function, or through a definer function that checks the caller.

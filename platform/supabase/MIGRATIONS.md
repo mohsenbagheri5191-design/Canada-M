@@ -1,15 +1,36 @@
 # Migrations
 
-Supabase's own migration history is authoritative. This file lists what is
-applied and why, because the reasoning is the part that does not survive in a
-schema dump.
+Every migration applied to the live project is in [`migrations/`](migrations/),
+named with the exact version Supabase recorded, and identical (checked by md5)
+to the SQL stored in its migration history
+(`supabase_migrations.schema_migrations`). This file lists what each one does
+and why, because the reasoning is the part that does not survive in a schema
+dump.
 
-To vendor the SQL itself:
+To check the repository still matches the live project:
+
+```sql
+select version, name, md5(regexp_replace(statements[1], '\s+$', ''))
+  from supabase_migrations.schema_migrations order by version;
+```
+
+and compare with `md5` of each file after stripping trailing whitespace.
+
+To rebuild the database somewhere else (a new project, a branch, or
+`supabase start` locally), apply the files in name order, then the demo data:
 
 ```sh
-supabase link --project-ref sxsbeavdmfuznigslfnp
-supabase db pull            # writes supabase/migrations/*.sql
+for f in platform/supabase/migrations/*.sql; do psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$f"; done
+psql "$DATABASE_URL" -f platform/supabase/seed.sql
 ```
+
+The Supabase CLI reads `<workdir>/supabase/migrations`, so from the repository
+root it is `supabase --workdir platform db push` once linked. The repository's
+top-level `supabase/` directory belongs to a different product — never point
+the CLI at it for this project.
+
+New migrations go in `migrations/` with a timestamp prefix *and* are applied to
+the live project under the same name, so the two never drift again.
 
 | # | Migration | What it does |
 |---|---|---|

@@ -64,6 +64,8 @@ export const received = { pathEvents: [], rejectedEvents: [], queries: [], write
 
 /** path_events_event_check, as of migration 20261015134216. */
 const PATH_EVENT_TYPES = new Set(["view", "exit", "action", "error"]);
+/** path_events' NOT NULL columns that have no default the client can lean on in a batch. */
+const PATH_EVENT_NOT_NULL = ["user_id", "route_path", "event", "metadata"];
 
 let mode = { failLayout: false, failWrites: false, offline: false };
 
@@ -247,8 +249,17 @@ export const server = createServer(async (req, res) => {
     // with them every batch they were part of.
     const bad = rows.find((r) => !PATH_EVENT_TYPES.has(r?.event));
     if (bad) {
-      received.rejectedEvents.push(bad.event);
+      received.rejectedEvents.push(`event "${bad.event}"`);
       return send(res, 400, { code: "23514", message: 'new row for relation "path_events" violates check constraint "path_events_event_check"' });
+    }
+    // PostgREST inserts a batch with one column list, so a key present on any
+    // row is a column for every row, and a row without it supplies null. The
+    // NOT NULL columns then refuse the whole batch.
+    const columns = new Set(rows.flatMap((r) => Object.keys(r ?? {})));
+    const missing = PATH_EVENT_NOT_NULL.find((c) => columns.has(c) && rows.some((r) => r?.[c] == null));
+    if (missing) {
+      received.rejectedEvents.push(`null ${missing}`);
+      return send(res, 400, { code: "23502", message: `null value in column "${missing}" of relation "path_events" violates not-null constraint` });
     }
     received.pathEvents.push(...rows);
     return send(res, 201, {});

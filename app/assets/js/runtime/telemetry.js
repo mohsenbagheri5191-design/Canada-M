@@ -50,6 +50,13 @@ export function createTelemetry({ enabled = true } = {}) {
         design_version_id: context.designVersionId,
         session_id: sessionId,
         occurred_at: new Date().toISOString(),
+        // Every row carries every column. PostgREST inserts a batch with one
+        // column list for all its rows, so a key that one row has and another
+        // lacks arrives as null on the second, and metadata is NOT NULL: a view
+        // and an exit in the same batch took the whole batch down.
+        node_id: null,
+        dwell_ms: null,
+        metadata: {},
         ...event,
       },
     });

@@ -1,0 +1,1360 @@
+/* ===========================================================================
+   Design Studio.
+   Three regions: toolbar across the top, canvas on the left, inspector right.
+   =========================================================================== */
+
+.studio {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg);
+}
+
+/* ---------------------------------------------------------------------------
+   Toolbar
+   --------------------------------------------------------------------------- */
+
+.studio-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex: none;
+  height: var(--control-h-lg);
+  padding: 0 var(--s-2) 0 var(--s-3);
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.studio-title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.studio-title input {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--r-control);
+  padding: 2px 6px;
+  font-size: var(--fs-13);
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+  width: 15ch;
+  min-width: 6ch;
+  transition: border-color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease);
+}
+
+.studio-title input:hover {
+  border-color: var(--line);
+}
+
+.studio-title input:focus {
+  border-color: var(--accent-line);
+  background: var(--bg-sunken);
+  outline: none;
+}
+
+.version-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 0 6px 0 8px;
+  border-radius: var(--r-pill);
+  background: var(--surface-active);
+  color: var(--text-secondary);
+  font-size: var(--fs-11);
+  font-weight: var(--fw-medium);
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+
+.version-pill:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.version-pill svg {
+  width: 11px;
+  height: 11px;
+}
+
+.save-state {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-11);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  min-width: 94px;
+}
+
+.save-state .dot {
+  width: 5px;
+  height: 5px;
+}
+
+/* ---------------------------------------------------------------------------
+   Body split
+   --------------------------------------------------------------------------- */
+
+.studio-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+}
+
+/* ---------------------------------------------------------------------------
+   Canvas
+   --------------------------------------------------------------------------- */
+
+.canvas-region {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: var(--canvas-bg);
+  background-image:
+    radial-gradient(circle at 1px 1px, var(--canvas-grid) 1px, transparent 0);
+  background-size: 16px 16px;
+  overflow: hidden;
+}
+
+.canvas-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex: none;
+  height: var(--control-h-lg);
+  padding: 0 var(--s-3);
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.canvas-viewport {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  place-items: center;
+  padding: var(--s-8);
+  position: relative;
+}
+
+/* The stage is sized to the scaled device; the device carries the transform,
+   so zooming keeps text crisp and the viewport centres what you can see. */
+.canvas-stage {
+  position: relative;
+  flex: none;
+  transition:
+    width var(--t-slow) var(--ease),
+    height var(--t-slow) var(--ease);
+}
+
+.canvas-stage > .device {
+  transform-origin: top left;
+  transition: transform var(--t-slow) var(--ease);
+}
+
+.canvas-stage.dragging,
+.canvas-stage.dragging > .device {
+  transition: none;
+}
+
+/* --- Device frame --------------------------------------------------------- */
+
+.device {
+  position: relative;
+  background: #0b0b0d;
+  border-radius: var(--device-radius, 46px);
+  padding: 11px;
+  box-shadow:
+    0 0 0 1.5px rgb(255 255 255 / 0.1),
+    0 0 0 8px rgb(0 0 0 / 0.5),
+    0 40px 90px -30px rgb(0 0 0 / 0.8),
+    0 8px 20px -6px rgb(0 0 0 / 0.5);
+}
+
+[data-theme="light"] .device {
+  background: #1b1b20;
+  box-shadow:
+    0 0 0 1.5px rgb(255 255 255 / 0.12),
+    0 0 0 7px rgb(24 24 30 / 0.12),
+    0 34px 70px -28px rgb(20 22 40 / 0.36),
+    0 6px 16px -6px rgb(20 22 40 / 0.2);
+}
+
+.device.rotated {
+  transform: rotate(90deg);
+}
+
+.device-screen {
+  position: relative;
+  overflow: hidden;
+  border-radius: calc(var(--device-radius, 46px) - 11px);
+  background: #fff;
+  isolation: isolate;
+}
+
+/* The notch / dynamic island. */
+.device-notch {
+  position: absolute;
+  top: 9px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 34%;
+  height: 26px;
+  border-radius: var(--r-pill);
+  background: #0b0b0d;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.device-home {
+  position: absolute;
+  bottom: 7px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 36%;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: currentColor;
+  opacity: 0.28;
+  z-index: 6;
+  pointer-events: none;
+}
+
+/* The rendered app. */
+.device-content {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.device-content::-webkit-scrollbar {
+  width: 0;
+}
+
+/* Status bar drawn above the layout so previews read as a real device. */
+.device-status {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 26px 0;
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 5;
+  pointer-events: none;
+  mix-blend-mode: difference;
+  color: #fff;
+}
+
+.device-status .bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 10px;
+}
+
+.device-status .bars i {
+  display: block;
+  width: 3px;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+/* --- Selection overlay ---------------------------------------------------- */
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.hover-box {
+  position: absolute;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  pointer-events: none;
+  opacity: 0.75;
+  transition: opacity var(--t-fast) var(--ease);
+}
+
+.hover-badge {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 17px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  letter-spacing: 0;
+}
+
+.hover-badge svg {
+  width: 10px;
+  height: 10px;
+}
+
+.select-box {
+  position: absolute;
+  border: 1.5px solid var(--accent);
+  border-radius: 3px;
+  pointer-events: none;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.2);
+}
+
+.select-box.multi {
+  border-style: dashed;
+}
+
+/* Eight resize handles. */
+.handle {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: var(--bg);
+  border: 1.5px solid var(--accent);
+  pointer-events: auto;
+  z-index: 12;
+  transition: transform var(--t-fast) var(--ease);
+}
+
+.handle:hover {
+  transform: scale(1.25);
+}
+
+.handle[data-dir="nw"] { cursor: nwse-resize; }
+.handle[data-dir="n"]  { cursor: ns-resize; }
+.handle[data-dir="ne"] { cursor: nesw-resize; }
+.handle[data-dir="e"]  { cursor: ew-resize; }
+.handle[data-dir="se"] { cursor: nwse-resize; }
+.handle[data-dir="s"]  { cursor: ns-resize; }
+.handle[data-dir="sw"] { cursor: nesw-resize; }
+.handle[data-dir="w"]  { cursor: ew-resize; }
+
+/* Live pixel readout while resizing. */
+.size-readout {
+  position: absolute;
+  padding: 3px 7px;
+  border-radius: 5px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 14;
+}
+
+/* Drop insertion line. */
+.insert-line {
+  position: absolute;
+  background: var(--accent);
+  border-radius: var(--r-pill);
+  pointer-events: none;
+  z-index: 13;
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.insert-line::before,
+.insert-line::after {
+  content: "";
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+}
+
+.insert-line[data-axis="x"] {
+  height: 2px;
+}
+.insert-line[data-axis="x"]::before {
+  left: -2px;
+  top: -1.5px;
+}
+.insert-line[data-axis="x"]::after {
+  right: -2px;
+  top: -1.5px;
+}
+
+.insert-line[data-axis="y"] {
+  width: 2px;
+}
+.insert-line[data-axis="y"]::before {
+  top: -2px;
+  left: -1.5px;
+}
+.insert-line[data-axis="y"]::after {
+  bottom: -2px;
+  left: -1.5px;
+}
+
+/* The parent that would receive the drop. */
+.drop-parent {
+  position: absolute;
+  border: 1.5px dashed var(--accent);
+  border-radius: 5px;
+  background: var(--accent-softer);
+  pointer-events: none;
+  z-index: 11;
+}
+
+.drop-invalid {
+  position: absolute;
+  border: 1.5px solid var(--danger);
+  border-radius: 5px;
+  background: rgb(255 92 92 / 0.08);
+  pointer-events: none;
+  z-index: 11;
+}
+
+/* Alignment guides. */
+.guide {
+  position: absolute;
+  background: #ff45d8;
+  pointer-events: none;
+  z-index: 13;
+}
+
+.guide[data-axis="x"] {
+  height: 1px;
+}
+.guide[data-axis="y"] {
+  width: 1px;
+}
+
+/* Alt-held spacing measurements. */
+.measure {
+  position: absolute;
+  z-index: 13;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(255 69 216 / 0.14);
+  border: 1px dashed rgb(255 69 216 / 0.6);
+}
+
+.measure > span {
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #ff45d8;
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* Marquee select. */
+.marquee {
+  position: absolute;
+  border: 1px solid var(--accent);
+  background: var(--accent-softer);
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 12;
+}
+
+/* The block being dragged from the palette follows the pointer. */
+.drag-ghost {
+  position: fixed;
+  z-index: var(--z-drag);
+  pointer-events: none;
+  padding: 5px 9px;
+  border-radius: var(--r-control);
+  background: var(--surface-overlay);
+  border: 1px solid var(--accent-line);
+  box-shadow: var(--shadow-drag);
+  font-size: var(--fs-11);
+  font-weight: var(--fw-medium);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transform: translate(10px, 10px);
+}
+
+.drag-ghost svg {
+  width: 13px;
+  height: 13px;
+  color: var(--accent);
+}
+
+/* ---------------------------------------------------------------------------
+   Screen strip along the bottom of the canvas
+   --------------------------------------------------------------------------- */
+
+.screen-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex: none;
+  height: 46px;
+  padding: 0 var(--s-3);
+  border-top: 1px solid var(--line);
+  background: var(--bg);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.screen-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.screen-chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: none;
+  height: 28px;
+  padding: 0 9px;
+  border-radius: var(--r-control);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: var(--fs-12);
+  transition:
+    border-color var(--t-fast) var(--ease),
+    color var(--t-fast) var(--ease),
+    background-color var(--t-fast) var(--ease);
+}
+
+.screen-chip:hover {
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+
+.screen-chip.active {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.screen-chip .route {
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  opacity: 0.7;
+}
+
+.screen-chip .entry-mark {
+  width: 5px;
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--success);
+}
+
+/* ---------------------------------------------------------------------------
+   Inspector
+   --------------------------------------------------------------------------- */
+
+.inspector {
+  flex: none;
+  width: var(--inspector-w, 344px);
+  min-width: 288px;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--line);
+  background: var(--surface);
+  min-height: 0;
+}
+
+.inspector-head {
+  flex: none;
+  border-bottom: 1px solid var(--line);
+}
+
+.inspector-selection {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: var(--control-h-lg);
+  padding: 0 var(--s-3);
+  border-bottom: 1px solid var(--line-faint);
+}
+
+.inspector-selection > .type-mark {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  flex: none;
+}
+
+.inspector-selection > .type-mark svg {
+  width: 13px;
+  height: 13px;
+}
+
+.inspector-body {
+  flex: 1 1 auto;
+  overflow: auto;
+  min-height: 0;
+}
+
+.inspector-body > .section:last-child {
+  border-bottom: 0;
+}
+
+/* --- Palette (Insert tab) ------------------------------------------------- */
+
+.palette-search {
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--line-faint);
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 2;
+}
+
+.palette-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-2);
+  padding: 0 var(--s-3) var(--s-3);
+}
+
+.palette-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-radius: var(--r-control);
+  border: 1px solid var(--line);
+  background: var(--bg-sunken);
+  overflow: hidden;
+  cursor: grab;
+  text-align: left;
+  transition:
+    border-color var(--t-fast) var(--ease),
+    transform var(--t-fast) var(--ease),
+    box-shadow var(--t-fast) var(--ease);
+}
+
+.palette-card:hover {
+  border-color: var(--accent-line);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-panel);
+}
+
+.palette-card:active {
+  cursor: grabbing;
+  transform: scale(0.985);
+}
+
+/* The thumbnail is a real miniature render, not a stock glyph. */
+.palette-thumb {
+  height: 62px;
+  position: relative;
+  overflow: hidden;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line-faint);
+  display: grid;
+  place-items: center;
+}
+
+.palette-thumb > .mini {
+  transform-origin: center center;
+  pointer-events: none;
+}
+
+.palette-meta {
+  padding: 6px 8px 7px;
+}
+
+.palette-meta b {
+  display: block;
+  font-size: var(--fs-11);
+  font-weight: var(--fw-medium);
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.palette-meta small {
+  display: block;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  line-height: 1.35;
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The inspector's five panels have to fit its width without scrolling. */
+.inspector .tabstrip {
+  padding: 0 var(--s-1);
+}
+
+.inspector .tabstrip > button {
+  padding: 0 6px;
+  gap: 3px;
+  font-size: var(--fs-11);
+}
+
+.inspector .tabstrip > button svg {
+  width: 12px;
+  height: 12px;
+}
+
+.inspector .tabstrip > button[aria-selected="true"]::after {
+  left: 5px;
+  right: 5px;
+}
+
+/* Single-column list variant for the component list. */
+.palette-list-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  height: var(--row-h);
+  padding: 0 var(--s-2);
+  border-radius: var(--r-control);
+  color: var(--text-secondary);
+  font-size: var(--fs-12);
+  cursor: grab;
+  text-align: left;
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+
+.palette-list-row:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.palette-list-row > .glyph {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  background: var(--surface-active);
+  color: var(--text-tertiary);
+  flex: none;
+}
+
+.palette-list-row:hover > .glyph {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.palette-list-row > .glyph svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* --- Layers --------------------------------------------------------------- */
+
+.layer-tree {
+  padding: var(--s-1) var(--s-2) var(--s-4);
+}
+
+.layer-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding-right: 4px;
+  border-radius: var(--r-control);
+  color: var(--text-secondary);
+  font-size: var(--fs-12);
+  cursor: default;
+  position: relative;
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+
+.layer-row:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.layer-row.selected {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.layer-row.dim {
+  opacity: 0.45;
+}
+
+.layer-row.drop-before::before,
+.layer-row.drop-after::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: var(--r-pill);
+}
+
+.layer-row.drop-before::before {
+  top: -1px;
+}
+.layer-row.drop-after::after {
+  bottom: -1px;
+}
+
+.layer-row.drop-inside {
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+.layer-twisty {
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  flex: none;
+  color: var(--text-tertiary);
+  border-radius: 3px;
+}
+
+.layer-twisty svg {
+  width: 10px;
+  height: 10px;
+  transition: transform var(--t-fast) var(--ease);
+}
+
+.layer-twisty[aria-expanded="true"] svg {
+  transform: rotate(90deg);
+}
+
+.layer-glyph {
+  display: flex;
+  flex: none;
+  color: var(--text-tertiary);
+}
+
+.layer-row.selected .layer-glyph {
+  color: var(--accent);
+}
+
+.layer-glyph svg {
+  width: 13px;
+  height: 13px;
+}
+
+.layer-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layer-name input {
+  width: 100%;
+  background: var(--bg-sunken);
+  border: 1px solid var(--accent-line);
+  border-radius: 4px;
+  padding: 0 4px;
+  font-size: var(--fs-12);
+  color: var(--text);
+}
+
+.layer-tools {
+  display: flex;
+  gap: 1px;
+  opacity: 0;
+  transition: opacity var(--t-fast) var(--ease);
+}
+
+.layer-row:hover .layer-tools,
+.layer-row.selected .layer-tools,
+.layer-tools:focus-within {
+  opacity: 1;
+}
+
+.layer-tools button {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  color: var(--text-tertiary);
+}
+
+.layer-tools button:hover {
+  background: var(--surface-active);
+  color: var(--text);
+}
+
+.layer-tools button.on {
+  color: var(--accent);
+  opacity: 1;
+}
+
+.layer-tools svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* --- Style controls ------------------------------------------------------- */
+
+/* The box-model control for padding and margin. */
+.box-model {
+  position: relative;
+  display: grid;
+  grid-template-columns: 34px 1fr 34px;
+  grid-template-rows: 22px 1fr 22px;
+  gap: 2px;
+  height: 92px;
+  padding: 2px;
+  border-radius: var(--r-control);
+  background: var(--bg-sunken);
+  border: 1px solid var(--line);
+}
+
+.box-model input {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: var(--fs-11);
+  text-align: center;
+  transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+
+.box-model input:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.box-model input:focus {
+  outline: none;
+  border-color: var(--accent-line);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.box-model .box-center {
+  grid-area: 2 / 2;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  border: 1px dashed var(--line-strong);
+  color: var(--text-tertiary);
+  font-size: var(--fs-11);
+  gap: 2px;
+}
+
+.box-model .box-link {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  color: var(--text-tertiary);
+}
+
+.box-model .box-link:hover {
+  background: var(--surface-active);
+  color: var(--text);
+}
+
+.box-model .box-link.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.box-model .box-link svg {
+  width: 12px;
+  height: 12px;
+}
+
+.box-model .t { grid-area: 1 / 2; }
+.box-model .r { grid-area: 2 / 3; }
+.box-model .b { grid-area: 3 / 2; }
+.box-model .l { grid-area: 2 / 1; }
+
+/* Four-corner radius control. */
+.corner-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-1);
+}
+
+/* Preset chip rows. */
+.preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.preset-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line);
+  background: var(--bg-sunken);
+  color: var(--text-secondary);
+  font-size: var(--fs-11);
+  font-weight: var(--fw-medium);
+  transition:
+    border-color var(--t-fast) var(--ease),
+    color var(--t-fast) var(--ease),
+    background-color var(--t-fast) var(--ease),
+    transform var(--t-fast) var(--ease);
+}
+
+.preset-chip:hover {
+  border-color: var(--accent-line);
+  color: var(--accent);
+  background: var(--accent-softer);
+}
+
+.preset-chip:active {
+  transform: scale(0.96);
+}
+
+.preset-chip.active {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* A token badge shown when a value is bound rather than literal. */
+.token-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: var(--fw-semibold);
+  font-family: var(--font-mono);
+}
+
+.token-badge svg {
+  width: 9px;
+  height: 9px;
+}
+
+/* Breakpoint and state selectors sit above the style list. */
+.style-context {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--line-faint);
+  background: var(--bg-sunken);
+}
+
+.inherited-mark {
+  width: 5px;
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--warning);
+  flex: none;
+}
+
+/* Icon picker grid. */
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  max-height: 260px;
+  overflow: auto;
+  padding: var(--s-1);
+}
+
+.icon-cell {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: var(--r-control);
+  color: var(--text-secondary);
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+
+.icon-cell:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.icon-cell.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.icon-cell svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* --- Data tab ------------------------------------------------------------- */
+
+.source-tree {
+  border-radius: var(--r-control);
+  border: 1px solid var(--line);
+  background: var(--bg-sunken);
+  overflow: hidden;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.source-field {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  height: 24px;
+  padding: 0 var(--s-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  color: var(--text-secondary);
+  text-align: left;
+  transition: background-color var(--t-fast) var(--ease);
+}
+
+.source-field:hover {
+  background: var(--accent-softer);
+  color: var(--accent);
+}
+
+.source-field .value {
+  margin-left: auto;
+  color: var(--text-tertiary);
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.action-card {
+  border-radius: var(--r-control);
+  border: 1px solid var(--line);
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+
+.action-card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: var(--control-h);
+  padding: 0 var(--s-2);
+  border-bottom: 1px solid var(--line-faint);
+  font-size: var(--fs-11);
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+
+.action-card-body {
+  padding: var(--s-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+/* Condition builder rows. */
+.condition-row {
+  display: grid;
+  grid-template-columns: 1fr 74px 1fr 22px;
+  gap: 4px;
+  align-items: center;
+}
+
+/* ---------------------------------------------------------------------------
+   Theme editor
+   --------------------------------------------------------------------------- */
+
+.theme-editor {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 0;
+  min-height: 460px;
+  max-height: 70vh;
+}
+
+.theme-controls {
+  border-right: 1px solid var(--line);
+  overflow: auto;
+  padding-bottom: var(--s-6);
+}
+
+.theme-preview {
+  overflow: auto;
+  padding: var(--s-4);
+  background: var(--bg-sunken);
+}
+
+.theme-gallery {
+  border-radius: var(--r-panel);
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+
+.ramp-row {
+  display: flex;
+  height: 26px;
+  border-radius: var(--r-control);
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+
+.ramp-row > span {
+  flex: 1 1 0;
+  position: relative;
+  transition: flex-grow var(--t-base) var(--ease);
+}
+
+.ramp-row > span:hover {
+  flex-grow: 2.4;
+}
+
+.theme-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-2);
+  border-radius: var(--r-control);
+  border: 1px solid var(--line);
+  background: var(--bg-sunken);
+  text-align: left;
+  transition: border-color var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+}
+
+.theme-card:hover {
+  border-color: var(--accent-line);
+  transform: translateY(-1px);
+}
+
+.theme-card.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* The preset name must not wrap; the description takes the remaining width. */
+.theme-card > .row > b {
+  white-space: nowrap;
+  flex: none;
+}
+
+.theme-card > .row > .dim {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.theme-swatches {
+  display: flex;
+  gap: 3px;
+  height: 22px;
+}
+
+.theme-swatches > span {
+  flex: 1 1 0;
+  border-radius: 4px;
+}
+
+/* ---------------------------------------------------------------------------
+   Publish panel
+   --------------------------------------------------------------------------- */
+
+.validation-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  padding: var(--s-2);
+  border-radius: var(--r-control);
+  font-size: var(--fs-12);
+  line-height: var(--lh-snug);
+}
+
+.validation-row.error {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.validation-row.warn {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.validation-row.ok {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.validation-row > svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  margin-top: 1px;
+}
+
+.validation-row b {
+  color: var(--text);
+}
+
+/* ---------------------------------------------------------------------------
+   History list
+   --------------------------------------------------------------------------- */
+
+.history-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  height: 28px;
+  padding: 0 var(--s-2);
+  border-radius: var(--r-control);
+  color: var(--text-secondary);
+  font-size: var(--fs-12);
+  text-align: left;
+  transition: background-color var(--t-fast) var(--ease);
+}
+
+.history-row:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.history-row.current {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.history-row.future {
+  opacity: 0.45;
+}
+
+.history-row .when {
+  margin-left: auto;
+  font-size: var(--fs-11);
+  color: var(--text-tertiary);
+}

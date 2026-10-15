@@ -1,0 +1,302 @@
+/* ===========================================================================
+   Design tokens.
+   Every colour, size, duration and easing in the dashboard resolves to a
+   variable declared here. Nothing downstream hard-codes a hex value.
+
+   Two axes vary at runtime:
+     [data-theme]   dark (default) | light
+     [data-density] comfortable (default) | compact
+   Both are written to <html> so a single attribute flip restyles the product.
+
+   ---------------------------------------------------------------------------
+   ON THE NEUMORPHIC TREATMENT
+
+   Neumorphism gets its look from surfaces the same colour as their background,
+   separated only by a soft light/dark shadow pair. Done dogmatically it is
+   unusable for a tool like this: low-contrast text, invisible focus states and
+   shadow spread that wrecks a 26px table row.
+
+   So the surfaces are neumorphic and the content is not. Panels, controls and
+   tiles are tactile — raised, inset, pressed. Text, icons and focus rings keep
+   normal contrast and clear WCAG AA. Shadow distances are scaled to the
+   control they wrap rather than a single large blur, which is what keeps dense
+   tables and 22px pills legible.
+   =========================================================================== */
+
+:root {
+  /* --- Accent -------------------------------------------------------------
+     Amazon orange. One accent: primary action, active state, selection.
+     Everything else is greyscale, with the semantic colours below reserved
+     for things that carry meaning. */
+  --accent: #ff9900;
+  --accent-hover: #ffad33;
+  --accent-press: #e88a00;
+  --accent-ink: #1a1205; /* text drawn on top of --accent */
+  --accent-soft: rgb(255 153 0 / 0.16);
+  --accent-softer: rgb(255 153 0 / 0.08);
+  --accent-line: rgb(255 153 0 / 0.42);
+  --accent-glow: rgb(255 153 0 / 0.26);
+
+  /* --- Semantics ----------------------------------------------------------
+     Warning is pushed to a distinctly yellower tone so it never reads as the
+     accent, which is the risk an orange accent creates. */
+  --success: #3fb96a;
+  --success-soft: rgb(63 185 106 / 0.14);
+  --warning: #e8c33c;
+  --warning-soft: rgb(232 195 60 / 0.14);
+  --danger: #f2554d;
+  --danger-soft: rgb(242 85 77 / 0.14);
+  --info: #4d9ef2;
+  --info-soft: rgb(77 158 242 / 0.14);
+
+  /* --- Type ---------------------------------------------------------------
+     Body is 13px. The scale is deliberately short: seven sizes, no more. */
+  --font-sans: "InterVariable", "Inter", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", ui-monospace, "Menlo",
+    "Consolas", monospace;
+
+  --fs-11: 11px;
+  --fs-12: 12px;
+  --fs-13: 13px;
+  --fs-14: 14px;
+  --fs-16: 16px;
+  --fs-20: 20px;
+  --fs-28: 28px;
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 590;
+  --fw-bold: 680;
+
+  --lh-tight: 1.2;
+  --lh-snug: 1.35;
+  --lh-normal: 1.55;
+
+  --tracking-tight: -0.014em;
+  --tracking-normal: -0.006em;
+  --tracking-wide: 0.06em;
+
+  /* --- Space --- 4px base grid, no exceptions ----------------------------- */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10: 40px;
+  --s-12: 48px;
+  --s-16: 64px;
+
+  --panel-pad: var(--s-4);
+  --section-gap: var(--s-6);
+
+  /* --- Radius -------------------------------------------------------------
+     Larger than a flat design would use: a soft shadow pair needs curvature to
+     read as a raised object rather than a blurred rectangle. */
+  --r-control: 10px;
+  --r-panel: 16px;
+  --r-pill: 999px;
+
+  /* --- Density ------------------------------------------------------------ */
+  --row-h: 32px;
+  --control-h: 28px;
+  --control-h-sm: 22px;
+  --control-h-lg: 34px;
+  --rail-w: 62px;
+  --topbar-h: 50px;
+
+  /* --- Motion -------------------------------------------------------------
+     120-180ms. Transform and opacity only. No bounce, ever. */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --t-fast: 120ms;
+  --t-base: 150ms;
+  --t-slow: 180ms;
+  --t-panel: 220ms;
+
+  /* --- Layering ------------------------------------------------------------ */
+  --z-canvas: 1;
+  --z-sticky: 20;
+  --z-rail: 40;
+  --z-popover: 60;
+  --z-drawer: 70;
+  --z-modal: 80;
+  --z-toast: 90;
+  --z-palette: 100;
+  --z-drag: 110;
+}
+
+/* ---------------------------------------------------------------------------
+   Dark surface set. The default.
+
+   The base is a slate charcoal rather than near-black: neumorphism needs room
+   for a light highlight above the surface colour, and pure black leaves none.
+   --------------------------------------------------------------------------- */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #1b1e24;
+  --bg-sunken: #171a1f;
+  --surface: #1b1e24;
+  --surface-raised: #1f2329;
+  --surface-overlay: #23272e;
+  --surface-hover: rgb(255 255 255 / 0.04);
+  --surface-active: rgb(255 255 255 / 0.07);
+  --surface-selected: var(--accent-softer);
+
+  --line: rgb(255 255 255 / 0.07);
+  --line-strong: rgb(255 255 255 / 0.13);
+  --line-faint: rgb(255 255 255 / 0.04);
+
+  --text: #f2f3f5;
+  --text-secondary: #a8aeba;
+  --text-tertiary: #767d8b;
+  --text-disabled: #4d545f;
+  --text-inverse: #16181d;
+
+  /* The neumorphic shadow pair: dark below-right, light above-left.
+     Three scales, because one blur cannot serve a 22px pill and a 400px panel. */
+  --nm-dark: rgb(0 0 0 / 0.5);
+  --nm-light: rgb(255 255 255 / 0.045);
+
+  --nm-raised-sm: 2px 2px 4px var(--nm-dark), -2px -2px 4px var(--nm-light);
+  --nm-raised-md: 4px 4px 10px var(--nm-dark), -3px -3px 8px var(--nm-light);
+  --nm-raised-lg: 8px 8px 20px var(--nm-dark), -5px -5px 14px var(--nm-light);
+
+  --nm-inset-sm: inset 2px 2px 4px var(--nm-dark), inset -2px -2px 4px var(--nm-light);
+  --nm-inset-md: inset 3px 3px 7px var(--nm-dark), inset -2px -2px 6px var(--nm-light);
+
+  --shadow-panel: var(--nm-raised-md);
+  --shadow-popover: 0 10px 30px -8px rgb(0 0 0 / 0.7), var(--nm-raised-md);
+  --shadow-modal: 0 28px 70px -14px rgb(0 0 0 / 0.8), var(--nm-raised-lg);
+  --shadow-drag: 0 14px 34px -10px rgb(0 0 0 / 0.72);
+
+  --scrim: rgb(10 11 14 / 0.66);
+  --canvas-bg: #15181c;
+  --canvas-grid: rgb(255 255 255 / 0.03);
+  --swatch-checker: rgb(255 255 255 / 0.07);
+}
+
+/* ---------------------------------------------------------------------------
+   Light surface set. A real light mode, not an inversion.
+
+   The classic neumorphic base: a cool light grey with a white highlight and a
+   blue-grey shadow. The accent darkens for text and borders, because #ff9900
+   only reaches 2.0:1 against a light surface and would fail AA everywhere it
+   carried meaning.
+   --------------------------------------------------------------------------- */
+[data-theme="light"] {
+  color-scheme: light;
+
+  --accent: #f57c00;
+  --accent-hover: #ff9900;
+  --accent-press: #d96b00;
+  --accent-ink: #ffffff;
+  --accent-soft: rgb(179 71 0 / 0.11);
+  --accent-softer: rgb(179 71 0 / 0.055);
+  --accent-line: rgb(179 71 0 / 0.36);
+  --accent-glow: rgb(255 153 0 / 0.3);
+  /* For text, icons and anything that must clear AA on a light surface. */
+  --accent-text: #a8430a;
+
+  --success: #1b8a4b;
+  --success-soft: rgb(27 138 75 / 0.11);
+  --warning: #8a6d00;
+  --warning-soft: rgb(138 109 0 / 0.11);
+  --danger: #cf3831;
+  --danger-soft: rgb(207 56 49 / 0.1);
+  --info: #1f6feb;
+  --info-soft: rgb(31 111 235 / 0.1);
+
+  --bg: #e9ecf2;
+  --bg-sunken: #e2e6ed;
+  --surface: #e9ecf2;
+  --surface-raised: #eef1f6;
+  --surface-overlay: #f4f6fa;
+  --surface-hover: rgb(16 22 40 / 0.035);
+  --surface-active: rgb(16 22 40 / 0.06);
+  --surface-selected: var(--accent-softer);
+
+  --line: rgb(16 22 40 / 0.09);
+  --line-strong: rgb(16 22 40 / 0.16);
+  --line-faint: rgb(16 22 40 / 0.05);
+
+  --text: #16181d;
+  --text-secondary: #4a5160;
+  --text-tertiary: #78808f;
+  --text-disabled: #a8aeba;
+  --text-inverse: #ffffff;
+
+  --nm-dark: rgb(158 170 191 / 0.6);
+  --nm-light: rgb(255 255 255 / 0.95);
+
+  --nm-raised-sm: 2px 2px 4px var(--nm-dark), -2px -2px 4px var(--nm-light);
+  --nm-raised-md: 4px 4px 10px var(--nm-dark), -3px -3px 8px var(--nm-light);
+  --nm-raised-lg: 8px 8px 20px var(--nm-dark), -5px -5px 14px var(--nm-light);
+
+  --nm-inset-sm: inset 2px 2px 4px var(--nm-dark), inset -2px -2px 4px var(--nm-light);
+  --nm-inset-md: inset 3px 3px 7px var(--nm-dark), inset -2px -2px 6px var(--nm-light);
+
+  --shadow-panel: var(--nm-raised-md);
+  --shadow-popover: 0 12px 30px -10px rgb(70 84 110 / 0.28), var(--nm-raised-md);
+  --shadow-modal: 0 28px 64px -16px rgb(70 84 110 / 0.34), var(--nm-raised-lg);
+  --shadow-drag: 0 14px 32px -10px rgb(70 84 110 / 0.3);
+
+  --scrim: rgb(38 46 62 / 0.32);
+  --canvas-bg: #dfe3eb;
+  --canvas-grid: rgb(16 22 40 / 0.04);
+  --swatch-checker: rgb(16 22 40 / 0.08);
+}
+
+/* Dark mode has no separate text accent; the fill colour already clears AA. */
+:root,
+[data-theme="dark"] {
+  --accent-text: var(--accent);
+}
+
+/* ---------------------------------------------------------------------------
+   Compact density.
+
+   Shadow scales shrink with the controls. A 4px offset under a 24px row reads
+   as a smudge rather than a raised edge.
+   --------------------------------------------------------------------------- */
+[data-density="compact"] {
+  --row-h: 26px;
+  --control-h: 24px;
+  --control-h-sm: 20px;
+  --control-h-lg: 28px;
+  --panel-pad: var(--s-3);
+  --section-gap: var(--s-4);
+  --topbar-h: 44px;
+  --r-control: 8px;
+  --r-panel: 12px;
+
+  --nm-raised-sm: 1px 1px 3px var(--nm-dark), -1px -1px 3px var(--nm-light);
+  --nm-raised-md: 3px 3px 7px var(--nm-dark), -2px -2px 6px var(--nm-light);
+  --nm-inset-sm: inset 1px 1px 3px var(--nm-dark), inset -1px -1px 3px var(--nm-light);
+  --nm-inset-md: inset 2px 2px 5px var(--nm-dark), inset -2px -2px 4px var(--nm-light);
+}
+
+/* ---------------------------------------------------------------------------
+   Reduced motion. Transitions collapse; nothing animates position.
+   --------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-fast: 1ms;
+    --t-base: 1ms;
+    --t-slow: 1ms;
+    --t-panel: 1ms;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}

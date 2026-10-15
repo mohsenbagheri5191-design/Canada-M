@@ -1,0 +1,364 @@
+/**
+ * The app's own chrome.
+ *
+ * Deliberately small. Everything inside a screen is styled by the renderer from
+ * the resolved theme, so this file covers only what no layout document owns:
+ * the page itself, safe areas, the scroll container, the tab bar, banners, and
+ * the handful of states that exist when there is no layout to render.
+ *
+ * Every colour here reads a custom property written by runtime/theme.js, so the
+ * chrome changes with the design rather than staying whatever it was built as.
+ */
+
+:root {
+  --c-background: #f4f5f7;
+  --c-surface: #ffffff;
+  --c-surface-sunken: #e9eaee;
+  --c-border: #d9dbe1;
+  --c-text: #15171c;
+  --c-text-secondary: #4d5361;
+  --c-text-tertiary: #7c8393;
+  --c-primary: #2f6fed;
+  --c-on-primary: #ffffff;
+  --c-danger: #c8352d;
+  --c-warning: #8a6a00;
+  --c-info: #2f6fed;
+
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --fs-base: 14px;
+  --r-panel: 14px;
+  --r-control: 10px;
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --tabbar-h: 58px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font);
+  font-size: var(--fs-base);
+  background: var(--c-background);
+  color: var(--c-text);
+  -webkit-font-smoothing: antialiased;
+  text-size-adjust: 100%;
+  overscroll-behavior-y: none;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--c-primary) 26%, transparent);
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  padding-top: var(--safe-top);
+}
+
+/* The scroll container. The renderer's output goes straight inside, so it must
+   not impose padding or a background that would fight the screen's own. */
+.stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.chrome {
+  flex: 0 0 auto;
+  padding-bottom: var(--safe-bottom);
+}
+
+/* --- Tab bar -------------------------------------------------------------- */
+
+.tabbar {
+  display: flex;
+  align-items: stretch;
+  height: var(--tabbar-h);
+  background: color-mix(in srgb, var(--c-surface) 92%, transparent);
+  border-top: 1px solid var(--c-border);
+  backdrop-filter: blur(12px);
+}
+
+.tab {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: 0;
+  background: none;
+  padding: 6px 4px;
+  color: var(--c-text-tertiary);
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.tab[data-active="true"] {
+  color: var(--c-primary);
+}
+
+.tab:active {
+  transform: scale(0.96);
+}
+
+.tab-glyph {
+  display: flex;
+}
+
+.tab-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- Banners -------------------------------------------------------------- */
+
+.banners {
+  flex: 0 0 auto;
+}
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px 9px 14px;
+  font-size: 12.5px;
+  font-weight: 500;
+  background: color-mix(in srgb, var(--c-info) 14%, var(--c-surface));
+  color: var(--c-text);
+  border-bottom: 1px solid var(--c-border);
+}
+
+.banner[data-kind="warn"] {
+  background: color-mix(in srgb, var(--c-warning) 18%, var(--c-surface));
+}
+
+.banner[data-kind="preview"] {
+  background: var(--c-primary);
+  color: var(--c-on-primary);
+  border-bottom-color: transparent;
+}
+
+.banner-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.banner-close {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentcolor 12%, transparent);
+  color: inherit;
+  cursor: pointer;
+}
+
+/* --- Full-screen states --------------------------------------------------- */
+
+.notice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 100%;
+  padding: 48px 28px;
+  text-align: center;
+}
+
+.notice-mark {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--c-text-tertiary) 12%, transparent);
+  color: var(--c-text-tertiary);
+}
+
+.notice-mark[data-tone="danger"] {
+  background: color-mix(in srgb, var(--c-danger) 13%, transparent);
+  color: var(--c-danger);
+}
+
+.notice-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.notice-body {
+  margin: 0;
+  max-width: 34ch;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--c-text-secondary);
+}
+
+.notice-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+/* --- Controls the shell owns ---------------------------------------------- */
+
+.app-btn {
+  appearance: none;
+  border: 0;
+  border-radius: var(--r-control);
+  padding: 11px 18px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--c-primary);
+  color: var(--c-on-primary);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform 120ms cubic-bezier(0.2, 0, 0, 1),
+    filter 120ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.app-btn[data-variant="subtle"] {
+  background: var(--c-surface-sunken);
+  color: var(--c-text);
+}
+
+.app-btn:active:not(:disabled) {
+  transform: scale(0.98);
+  filter: brightness(0.95);
+}
+
+.app-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.app-input {
+  width: 100%;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-control);
+  padding: 12px 13px;
+  font: inherit;
+  /* 16px or larger, or iOS Safari zooms the page on focus and never zooms back. */
+  font-size: 16px;
+  background: var(--c-surface);
+  color: var(--c-text);
+}
+
+.app-input:focus-visible {
+  outline: 2px solid var(--c-primary);
+  outline-offset: 1px;
+  border-color: transparent;
+}
+
+.app-label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--c-text-secondary);
+}
+
+/* --- Sign in -------------------------------------------------------------- */
+
+.signin {
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  padding: 24px;
+}
+
+.signin-card {
+  width: min(380px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.signin-mark {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  margin-bottom: 8px;
+  border-radius: 17px;
+  background: var(--c-primary);
+  color: var(--c-on-primary);
+}
+
+.signin-title {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 660;
+  letter-spacing: -0.015em;
+}
+
+.signin-sub {
+  margin: 0 0 18px;
+  font-size: 13.5px;
+  color: var(--c-text-tertiary);
+}
+
+.signin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: 100%;
+}
+
+.signin-form .app-label:not(:first-child) {
+  margin-top: 8px;
+}
+
+.signin-form .app-btn {
+  margin-top: 14px;
+}
+
+.form-error {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--c-danger);
+}
+
+/* A preview is not the user's app: the frame says so even if the banner is
+   dismissed, so nobody reports a draft as though it were live. */
+body[data-mode="preview"] #app {
+  outline: 2px solid var(--c-primary);
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 1ms !important;
+    animation-duration: 1ms !important;
+  }
+}

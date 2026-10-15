@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark light" />
+    <title>Canada M</title>
+    <meta name="description" content="A design dashboard that publishes layouts, and the app that renders them." />
+    <meta name="robots" content="noindex, nofollow" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23ff9900'/%3E%3Cpath d='M7 12.2l3.1 3.1L17 8.5' fill='none' stroke='%231a1205' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
+    />
+    <style>
+      :root {
+        --bg: #14161a;
+        --panel: #1b1e24;
+        --line: #2a2f38;
+        --text: #eef1f6;
+        --dim: #9aa3b2;
+        --faint: #6f7889;
+        --accent: #ff9900;
+        --ink: #1a1205;
+        --r: 16px;
+      }
+
+      @media (prefers-color-scheme: light) {
+        :root:not([data-theme="dark"]) {
+          --bg: #e9ecf2;
+          --panel: #ffffff;
+          --line: #d7dbe3;
+          --text: #15171c;
+          --dim: #4d5361;
+          --faint: #7c8393;
+          --accent: #f57c00;
+          --ink: #ffffff;
+        }
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--text);
+        font: 15px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 56px 20px 72px;
+      }
+
+      main { width: min(880px, 100%); }
+
+      .mark {
+        display: grid;
+        place-items: center;
+        width: 46px;
+        height: 46px;
+        border-radius: 14px;
+        background: var(--accent);
+        color: var(--ink);
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        font-size: 19px;
+      }
+
+      h1 {
+        margin: 22px 0 6px;
+        font-size: clamp(27px, 5vw, 36px);
+        font-weight: 660;
+        letter-spacing: -0.025em;
+        line-height: 1.15;
+      }
+
+      .lede { margin: 0 0 8px; max-width: 62ch; color: var(--dim); font-size: 16px; }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 14px;
+        margin: 34px 0 0;
+      }
+
+      .card {
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+        padding: 22px;
+        border: 1px solid var(--line);
+        border-radius: var(--r);
+        background: var(--panel);
+        color: inherit;
+        text-decoration: none;
+        transition: border-color 160ms cubic-bezier(.2,0,0,1), transform 160ms cubic-bezier(.2,0,0,1);
+      }
+
+      .card:hover { border-color: var(--accent); transform: translateY(-2px); }
+      .card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+      .card h2 {
+        margin: 0;
+        font-size: 17px;
+        font-weight: 640;
+        letter-spacing: -0.01em;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .card p { margin: 0; color: var(--dim); font-size: 14px; }
+
+      .tag {
+        align-self: flex-start;
+        margin-top: 4px;
+        padding: 3px 9px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 650;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        background: color-mix(in srgb, var(--accent) 16%, transparent);
+        color: var(--accent);
+      }
+
+      .tag.plain { background: color-mix(in srgb, var(--faint) 18%, transparent); color: var(--dim); }
+
+      .note {
+        margin: 34px 0 0;
+        padding: 18px 20px;
+        border: 1px solid var(--line);
+        border-left: 3px solid var(--accent);
+        border-radius: 12px;
+        background: var(--panel);
+      }
+
+      .note h3 { margin: 0 0 6px; font-size: 13px; font-weight: 680; letter-spacing: 0.02em; text-transform: uppercase; color: var(--accent); }
+      .note p { margin: 0 0 8px; font-size: 14px; color: var(--dim); }
+      .note p:last-child { margin-bottom: 0; }
+
+      code {
+        padding: 1px 5px;
+        border-radius: 5px;
+        background: color-mix(in srgb, var(--faint) 20%, transparent);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.9em;
+      }
+
+      footer { margin: 44px 0 0; color: var(--faint); font-size: 13px; }
+      footer a { color: var(--dim); }
+    </style>
+  </head>
+
+  <body>
+    <main>
+      <div class="mark">CM</div>
+
+      <h1>A dashboard that publishes layouts,<br />and the app that renders them.</h1>
+      <p class="lede">
+        Both read one component registry, so a screen looks the same in the editor and on a phone. Layouts live in
+        Postgres and are resolved per user, per tenant, per feature flag — changing one needs no release.
+      </p>
+
+      <div class="grid">
+        <a class="card" href="/dashboard/">
+          <h2>Design dashboard</h2>
+          <p>
+            Eight tabs: overview, studio, library, assignments, paths, app data, features and rules. The studio has
+            42 components, 49 section presets, 15 screen templates, 7 visual styles and 11 palettes.
+          </p>
+          <span class="tag">Best on a desktop</span>
+        </a>
+
+        <a class="card" href="/app/">
+          <h2>The app</h2>
+          <p>
+            Renders whatever layout the database resolves for you, reads real tasks, projects and notes, and writes
+            back when you tick something. Falls back to a built-in layout when nothing is assigned.
+          </p>
+          <span class="tag">Best on a phone</span>
+        </a>
+      </div>
+
+      <div class="note">
+        <h3>Reading it without an account</h3>
+        <p>
+          The dashboard runs against seeded sample data in the browser — open it and everything works, nothing is
+          saved anywhere.
+        </p>
+        <p>
+          The app needs a sign-in, because what it shows you is decided by row-level security in the database. Without
+          credentials you will see the sign-in screen, which is the honest answer rather than a fake one.
+        </p>
+        <p>
+          A design can also be reviewed with no account at all through a preview link —
+          <code>/app/?preview=&lt;token&gt;</code> — which renders one specific draft, read only, and is never counted
+          as usage.
+        </p>
+      </div>
+
+      <footer>
+        Source: <a href="https://github.com/mohsenbagheri5191-design/Canada-M">github.com/mohsenbagheri5191-design/Canada-M</a>
+      </footer>
+    </main>
+  </body>
+</html>

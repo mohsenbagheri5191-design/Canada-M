@@ -1,0 +1,586 @@
+/* ===========================================================================
+   Surface treatment.
+
+   components.css defines what a control *is* — its box, its states, its
+   layout. This file defines what it *feels like*: raised, inset, pressed.
+   Keeping them apart means the skin can be swapped without touching
+   structure, which is the same separation the app's own style system uses.
+
+   The rule throughout: surfaces are tactile, content is not. A panel is a
+   raised object and an input is a well pressed into the page, but text, icons
+   and focus rings keep their contrast. Neumorphism applied to content is how
+   these interfaces become pretty and unusable.
+   =========================================================================== */
+
+/* ---------------------------------------------------------------------------
+   Buttons
+
+   A button is a raised object; pressing it pushes it in. That is the whole
+   idiom, and it is worth doing properly because it is the control people touch
+   most.
+   --------------------------------------------------------------------------- */
+
+.btn.subtle {
+  --btn-bg: var(--surface);
+  --btn-line: transparent;
+  box-shadow: var(--nm-raised-sm);
+}
+
+.btn.subtle:hover:not(:disabled) {
+  --btn-bg: var(--surface-raised);
+  --btn-line: transparent;
+  box-shadow: var(--nm-raised-md);
+}
+
+.btn.subtle:active:not(:disabled) {
+  box-shadow: var(--nm-inset-sm);
+  transform: none; /* the inset shadow already reads as a press */
+}
+
+.btn.primary {
+  box-shadow: var(--nm-raised-sm);
+}
+
+.btn.primary:hover:not(:disabled) {
+  box-shadow: var(--nm-raised-md), 0 0 0 3px var(--accent-glow);
+}
+
+.btn.primary:active:not(:disabled) {
+  box-shadow: var(--nm-inset-sm);
+  transform: none;
+}
+
+.btn.danger-solid {
+  box-shadow: var(--nm-raised-sm);
+}
+
+.btn.danger-solid:active:not(:disabled) {
+  box-shadow: var(--nm-inset-sm);
+  transform: none;
+}
+
+/* Ghost buttons stay flat at rest — a toolbar of raised objects is noise —
+   and only lift on hover. */
+.btn.ghost:hover:not(:disabled) {
+  box-shadow: var(--nm-raised-sm);
+}
+
+.btn.ghost:active:not(:disabled) {
+  box-shadow: var(--nm-inset-sm);
+  transform: none;
+}
+
+/* An active toggle is held in, not popped out. */
+.btn.active,
+.btn[aria-pressed="true"] {
+  box-shadow: var(--nm-inset-sm);
+}
+
+/* ---------------------------------------------------------------------------
+   Inputs — wells pressed into the surface
+   --------------------------------------------------------------------------- */
+
+.input,
+.select,
+.textarea,
+.num,
+.search-trigger,
+.org-switch {
+  background: var(--surface);
+  border-color: transparent;
+  box-shadow: var(--nm-inset-sm);
+}
+
+.input:hover,
+.select:hover,
+.textarea:hover,
+.num:hover,
+.search-trigger:hover,
+.org-switch:hover {
+  border-color: transparent;
+  box-shadow: var(--nm-inset-md);
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus,
+.num:focus-within {
+  background: var(--surface);
+  border-color: transparent;
+  /* Focus must stay obvious, so the accent ring sits on top of the inset
+     rather than replacing it. */
+  box-shadow: var(--nm-inset-sm), 0 0 0 2px var(--accent-line);
+}
+
+.input.invalid,
+.select.invalid {
+  border-color: transparent;
+  box-shadow: var(--nm-inset-sm), 0 0 0 2px var(--danger);
+}
+
+.cell-edit {
+  border-color: transparent;
+  box-shadow: var(--nm-inset-sm), 0 0 0 2px var(--accent-line);
+}
+
+/* ---------------------------------------------------------------------------
+   Panels and cards
+   --------------------------------------------------------------------------- */
+
+.panel {
+  border-color: transparent;
+  box-shadow: var(--nm-raised-md);
+}
+
+.card {
+  border-color: transparent;
+  box-shadow: var(--nm-raised-md);
+}
+
+.card.interactive:hover {
+  border-color: transparent;
+  box-shadow: var(--nm-raised-lg);
+}
+
+.card.selected {
+  border-color: transparent;
+  box-shadow: var(--nm-raised-md), 0 0 0 2px var(--accent-line);
+}
+
+/* Hairlines inside a raised panel stay visible: the shadow separates the panel
+   from the page, not one row from the next. */
+.panel-head,
+.panel-foot,
+.section,
+.activity-item,
+.health-row,
+.run-row {
+  border-color: var(--line);
+}
+
+/* ---------------------------------------------------------------------------
+   Segmented control — inset track, raised thumb.
+   The clearest possible read of "this one is selected".
+   --------------------------------------------------------------------------- */
+
+.segmented {
+  background: var(--surface);
+  border-color: transparent;
+  box-shadow: var(--nm-inset-sm);
+}
+
+.segmented > .seg-thumb {
+  background: var(--surface-raised);
+  border-color: transparent;
+  box-shadow: var(--nm-raised-sm);
+}
+
+.segmented.accent > button[aria-pressed="true"] {
+  color: var(--accent-text);
+}
+
+/* ---------------------------------------------------------------------------
+   Switch, checkbox, slider — all inset tracks
+   --------------------------------------------------------------------------- */
+
+.switch > .track {
+  background: var(--surface);
+  border-color: transparent;
+  box-shadow: var(--nm-inset-sm);
+}
+
+.switch > .track::after {
+  box-shadow: var(--nm-raised-sm);
+}
+
+.switch > input:checked + .track {
+  background: var(--accent);
+  box-shadow: var(--nm-inset-sm);
+}
+
+.switch > input:focus-visible + .track {
+  box-shadow: var(--nm-inset-sm), 0 0 0 3px var(--accent-glow);
+}
+
+.check > .box {
+  background: var(--surface);
+  border-color: transparent;
+  box-shadow: var(--nm-inset-sm);
+}
+
+.check:hover > .box {
+  border-color: transparent;
+  box-shadow: var(--nm-inset-md);
+}
+
+.check > input:checked + .box,
+.check > input:indeterminate + .box {
+  background: var(--accent);
+  border-color: transparent;
+  box-shadow: var(--nm-raised-sm);
+}
+
+.check > input:focus-visible + .box {
+  box-shadow: var(--nm-inset-sm), 0 0 0 3px var(--accent-glow);
+}
+
+.slider::before {
+  box-shadow: var(--nm-inset-sm);
+}
+
+.slider > input::-webkit-slider-thumb {
+  background: var(--surface-raised);
+  border: 0;
+  box-shadow: var(--nm-raised-sm);
+}
+
+.slider > input::-moz-range-thumb {
+  background: var(--surface-raised);
+  border: 0;
+  box-shadow: var(--nm-raised-sm);
+}
+
+.meter {
+  background: var(--surface);
+  box-shadow: var(--nm-inset-sm);
+}
+
+/* ---------------------------------------------------------------------------
+   Pills and badges
+
+   Deliberately flat. A table row carrying four raised pills reads as clutter,
+   and these are labels rather than controls.
+   --------------------------------------------------------------------------- */
+
+.pill.outline {
+  border-color: var(--line-strong);
+}
+
+.swatch {
+  border-color: transparent;
+  box-shadow: var(--nm-raised-sm);
+}
+
+/* ---------------------------------------------------------------------------
+   Floating layers
+
+   These need to read as lifted off the page, so they combine the neumorphic
+   pair with a real drop shadow. Their own background is one step lighter than
+   the page, because a same-colour overlay has nothing to separate it from
+   whatever it covers.
+   --------------------------------------------------------------------------- */
+
+.popover,
+.modal,
+.palette,
+.tooltip {
+  border-color: transparent;
+  background: var(--surface-overlay);
+}
+
+.drawer {
+  border-left-color: var(--line);
+  background: var(--surface);
+}
+
+.toast {
+  border-color: transparent;
+  background: var(--surface-overlay);
+  box-shadow: var(--shadow-popover);
+}
+
+.menu-item:hover,
+.menu-item.cursor {
+  box-shadow: var(--nm-inset-sm);
+}
+
+/* ---------------------------------------------------------------------------
+   Shell
+
+   The rail and top bar sit flush with the page; only the selected item is
+   pushed in. A raised nav item next to a raised panel next to a raised card
+   flattens the hierarchy that the treatment exists to create.
+   --------------------------------------------------------------------------- */
+
+.rail {
+  background: var(--bg);
+  border-right-color: var(--line);
+}
+
+.rail-item.active {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  box-shadow: var(--nm-inset-sm);
+}
+
+.rail-item:hover:not(.active) {
+  box-shadow: var(--nm-raised-sm);
+}
+
+.rail-mark {
+  box-shadow: var(--nm-raised-sm);
+}
+
+.topbar {
+  background: var(--bg);
+  border-bottom-color: var(--line);
+}
+
+/* ---------------------------------------------------------------------------
+   Tables
+
+   Rows stay flat. At 26–32px a shadow pair per row is illegible, and the whole
+   point of a dense table is that nothing competes with the data. The header
+   gets the surface colour so it reads as part of the panel it sits in.
+   --------------------------------------------------------------------------- */
+
+table.data thead th {
+  background: var(--surface);
+  border-bottom-color: var(--line);
+}
+
+table.data tbody tr.selected {
+  background: var(--surface-selected);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.bulk-bar {
+  border-color: transparent;
+  background: var(--surface-overlay);
+  box-shadow: var(--shadow-popover);
+}
+
+/* ---------------------------------------------------------------------------
+   Studio
+
+   The inspector's own chrome is quiet so the canvas and the design being
+   edited hold the attention. Preset chips are the exception: they are buttons
+   people click constantly, so they get the full raised treatment.
+   --------------------------------------------------------------------------- */
+
+.inspector {
+  background: var(--bg);
+  border-left-color: var(--line);
+}
+
+.inspector-head,
+.inspector-selection,
+.style-context,
+.palette-search {
+  border-color: var(--line);
+}
+
+.style-context {
+  background: var(--bg-sunken);
+}
+
+.preset-chip {
+  background: var(--surface);
+  border-color: transparent;
+  box-shadow: var(--nm-raised-sm);
+}
+
+.preset-chip:hover {
+  border-color: transparent;
+  color: var(--accent-text);
+  box-shadow: var(--nm-raised-md);
+}
+
+.preset-chip:active {
+  box-shadow: var(--nm-inset-sm);
+  transform: none;
+}
+
+.preset-chip.active {
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  box-shadow: var(--nm-inset-sm);
+}
+
+.palette-card {
+  background: var(--surface);
+  border-color: transparent;
+  box-shadow: var(--nm-raised-sm);
+}
+
+.palette-card:hover {
+  border-color: transparent;
+  box-shadow: var(--nm-raised-md);
+}
+
+.palette-card:active {
+  box-shadow: var(--nm-inset-sm);
+}
+
+.palette-thumb {
+  border-bottom-color: var(--line-faint);
+}
+
+.palette-list-row:hover {
+  box-shadow: var(--nm-inset-sm);
+}
+
+.box-model {
+  background: var(--surface);
+  border-color: transparent;
+  box-shadow: var(--nm-inset-sm);
+}
+
+.box-model input:focus {
+  border-color: transparent;
+  box-shadow: var(--nm-inset-sm), 0 0 0 2px var(--accent-line);
+}
+
+.source-tree,
+.action-card,
+.rule-sentence,
+.code {
+  background: var(--surface);
+  border-color: transparent;
+  box-shadow: var(--nm-inset-sm);
+}
+
+.screen-chip {
+  background: var(--surface);
+  border-color: transparent;
+  box-shadow: var(--nm-raised-sm);
+}
+
+.screen-chip:hover {
+  border-color: transparent;
+  box-shadow: var(--nm-raised-md);
+}
+
+.screen-chip.active {
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  box-shadow: var(--nm-inset-sm);
+}
+
+.version-pill {
+  box-shadow: var(--nm-raised-sm);
+}
+
+.version-pill:hover {
+  color: var(--accent-text);
+  box-shadow: var(--nm-raised-md);
+}
+
+.theme-card {
+  background: var(--surface);
+  border-color: transparent;
+  box-shadow: var(--nm-raised-sm);
+}
+
+.theme-card:hover {
+  border-color: transparent;
+  box-shadow: var(--nm-raised-md);
+}
+
+.theme-card.active {
+  border-color: transparent;
+  box-shadow: var(--nm-inset-sm), 0 0 0 2px var(--accent);
+}
+
+.quick-action {
+  background: var(--surface);
+  border-color: transparent;
+  box-shadow: var(--nm-raised-sm);
+}
+
+.quick-action:hover {
+  border-color: transparent;
+  box-shadow: var(--nm-raised-md);
+}
+
+.quick-action > .mark {
+  background: var(--surface);
+  box-shadow: var(--nm-inset-sm);
+}
+
+.quick-action:hover > .mark {
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: var(--nm-raised-sm);
+}
+
+.empty > .empty-mark,
+.feature-mark,
+.trace-mark,
+.route-node {
+  border-color: transparent;
+  box-shadow: var(--nm-raised-sm);
+}
+
+.callout {
+  background: var(--surface);
+  border-color: transparent;
+  box-shadow: var(--nm-inset-sm);
+}
+
+/* A toned callout keeps its tint and drops the inset: the colour is doing the
+   work, and an inset shadow over a tinted fill just muddies it. */
+.callout.accent,
+.callout.warning,
+.callout.danger,
+.callout.success {
+  box-shadow: none;
+}
+
+.callout.accent {
+  border: 1px solid var(--accent-line);
+}
+.callout.warning {
+  border: 1px solid rgb(232 195 60 / 0.34);
+}
+.callout.danger {
+  border: 1px solid rgb(242 85 77 / 0.34);
+}
+.callout.success {
+  border: 1px solid rgb(63 185 106 / 0.34);
+}
+
+.validation-row,
+.import-row,
+.diff-row {
+  box-shadow: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Focus
+
+   Unchanged in intent: always visible, never on mouse click. Stated here
+   because a soft-shadow interface makes a weak focus ring disappear entirely.
+   --------------------------------------------------------------------------- */
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+   The device frame keeps a hard edge.
+
+   It represents a physical phone, and the app rendered inside it carries its
+   own style — which is the user's choice, not the dashboard's. Giving the
+   frame a neumorphic treatment would blend the two and make it unclear which
+   surface belongs to which product.
+   --------------------------------------------------------------------------- */
+
+.device {
+  box-shadow:
+    0 0 0 1.5px rgb(255 255 255 / 0.1),
+    0 0 0 8px rgb(0 0 0 / 0.35),
+    0 36px 80px -28px rgb(0 0 0 / 0.72),
+    0 8px 20px -6px rgb(0 0 0 / 0.45);
+}
+
+[data-theme="light"] .device {
+  box-shadow:
+    0 0 0 1.5px rgb(255 255 255 / 0.14),
+    0 0 0 7px rgb(38 46 62 / 0.14),
+    0 30px 64px -26px rgb(70 84 110 / 0.4),
+    0 6px 16px -6px rgb(70 84 110 / 0.24);
+}

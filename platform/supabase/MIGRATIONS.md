@@ -58,6 +58,7 @@ the live project under the same name, so the two never drift again.
 | 22 | `fix_audit_entity_id_type_and_action_log` | `audit_log.entity_id` is uuid, not text |
 | 23 | `rule_runs_status_vocabulary` | `success`, not `succeeded` |
 | 24 | `rule_engine_per_rule_state_and_cascade_guard` | per-rule failure state, and a depth cap on rule-triggered cascades |
+| 25 | `path_events_accept_exit` | `path_events.event` accepts `exit`, the dwell-time record the app sends |
 
 ---
 
@@ -91,3 +92,10 @@ the event is dead-lettered with the reason (migration 24).
 exception handler quarantined the event, and the engine looked like it was
 silently skipping rules (migration 23). The queue's poison handling is the only
 reason nothing was lost.
+
+**The same disagreement, again, in telemetry.** The app sent `tap` and `exit`;
+`path_events` accepted `view`, `action` and `error`. A batch insert is all or
+nothing, so every batch carrying either word was refused with a 400 and took
+its screen views with it. Taps are now sent as `action`, and the table accepts
+`exit` (migration 25). The test stub now enforces the same CHECK, because a stub
+that accepts anything is how this went unnoticed.

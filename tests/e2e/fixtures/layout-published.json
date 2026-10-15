@@ -1,0 +1,425 @@
+{
+  "designVersionId": "f9727a96-683e-4a75-8e9b-4ac866159a1b",
+  "designName": "Northstar Workspace",
+  "versionNumber": 3,
+  "schemaVersion": 1,
+  "screens": [
+    {
+      "id": "scr_home",
+      "name": "Today",
+      "root": {
+        "id": "v3_0",
+        "type": "Stack",
+        "props": {
+          "gap": 18,
+          "size": {
+            "width": "fill",
+            "height": "fill"
+          },
+          "padding": {
+            "top": 18,
+            "left": 16,
+            "right": 16,
+            "bottom": 28
+          },
+          "direction": "vertical",
+          "background": "{{theme.colors.background}}"
+        },
+        "children": [
+          {
+            "id": "v3_1",
+            "type": "Header",
+            "props": {
+              "size": {
+                "height": 52
+              },
+              "title": "Today",
+              "showBack": false,
+              "showAvatar": true
+            }
+          },
+          {
+            "id": "v3_2",
+            "type": "TaskList",
+            "props": {
+              "items": {
+                "map": {
+                  "due": {
+                    "from": "due_at",
+                    "format": "date"
+                  },
+                  "note": "notes",
+                  "state": {
+                    "from": "status",
+                    "values": {
+                      "done": "done",
+                      "todo": "open",
+                      "review": "doing",
+                      "blocked": "blocked",
+                      "in_progress": "doing"
+                    },
+                    "fallback": "open"
+                  },
+                  "title": "title",
+                  "priority": {
+                    "from": "priority",
+                    "values": {
+                      "low": "low",
+                      "high": "high",
+                      "normal": "none",
+                      "urgent": "urgent"
+                    },
+                    "fallback": "none"
+                  }
+                },
+                "$bind": "query.open"
+              },
+              "title": "Open",
+              "countMode": "total",
+              "emptyText": "Nothing open.",
+              "showCount": true,
+              "showProgress": false
+            }
+          },
+          {
+            "id": "v3_3",
+            "type": "TaskList",
+            "props": {
+              "items": {
+                "map": {
+                  "due": {
+                    "from": "due_at",
+                    "format": "date"
+                  },
+                  "note": "notes",
+                  "state": {
+                    "from": "status",
+                    "values": {
+                      "done": "done",
+                      "todo": "open",
+                      "review": "doing",
+                      "blocked": "blocked",
+                      "in_progress": "doing"
+                    },
+                    "fallback": "open"
+                  },
+                  "title": "title",
+                  "priority": {
+                    "from": "priority",
+                    "values": {
+                      "low": "low",
+                      "high": "high",
+                      "normal": "none",
+                      "urgent": "urgent"
+                    },
+                    "fallback": "none"
+                  }
+                },
+                "$bind": "query.done"
+              },
+              "title": "Recently done",
+              "emptyText": "Nothing finished yet",
+              "showCount": false,
+              "showProgress": false
+            }
+          }
+        ]
+      },
+      "glyph": "listChecks",
+      "route": "/home",
+      "isEntry": true,
+      "sources": [
+        {
+          "id": "open",
+          "from": "tasks",
+          "limit": 25,
+          "order": "due_at.asc.nullslast",
+          "where": [
+            [
+              "status",
+              "neq",
+              "done"
+            ]
+          ]
+        },
+        {
+          "id": "done",
+          "from": "tasks",
+          "limit": 10,
+          "order": "completed_at.desc",
+          "where": [
+            [
+              "status",
+              "eq",
+              "done"
+            ]
+          ]
+        }
+      ],
+      "requiresRole": null
+    },
+    {
+      "id": "scr_projects",
+      "name": "Projects",
+      "root": {
+        "id": "v3_10",
+        "type": "Stack",
+        "props": {
+          "gap": 18,
+          "size": {
+            "width": "fill",
+            "height": "fill"
+          },
+          "padding": {
+            "top": 18,
+            "left": 16,
+            "right": 16,
+            "bottom": 28
+          },
+          "direction": "vertical",
+          "background": "{{theme.colors.background}}"
+        },
+        "children": [
+          {
+            "id": "v3_11",
+            "type": "Header",
+            "props": {
+              "size": {
+                "height": 52
+              },
+              "title": "Projects",
+              "showBack": false,
+              "showAvatar": true
+            }
+          },
+          {
+            "id": "v3_12",
+            "type": "Repeater",
+            "props": {
+              "gap": 10,
+              "map": {
+                "due": {
+                  "from": "due_on",
+                  "format": "date"
+                },
+                "name": "name",
+                "client": "description",
+                "status": {
+                  "from": "status",
+                  "values": {
+                    "done": "Done",
+                    "active": "On track",
+                    "on_hold": "On hold",
+                    "planning": "Planning",
+                    "cancelled": "Cancelled"
+                  }
+                },
+                "statusTone": {
+                  "from": "status",
+                  "values": {
+                    "done": "neutral",
+                    "active": "success",
+                    "on_hold": "warning",
+                    "planning": "info",
+                    "cancelled": "danger"
+                  },
+                  "fallback": "neutral"
+                }
+              },
+              "props": {
+                "showRing": false
+              },
+              "source": "query.projects",
+              "component": "ProjectCard",
+              "emptyText": "No projects yet"
+            }
+          }
+        ]
+      },
+      "glyph": "layers",
+      "route": "/projects",
+      "isEntry": false,
+      "sources": [
+        {
+          "id": "projects",
+          "from": "projects",
+          "limit": 25,
+          "order": "due_on.asc.nullslast"
+        }
+      ],
+      "requiresRole": null
+    },
+    {
+      "id": "scr_notes",
+      "name": "Notes",
+      "root": {
+        "id": "v3_20",
+        "type": "Stack",
+        "props": {
+          "gap": 18,
+          "size": {
+            "width": "fill",
+            "height": "fill"
+          },
+          "padding": {
+            "top": 18,
+            "left": 16,
+            "right": 16,
+            "bottom": 28
+          },
+          "direction": "vertical",
+          "background": "{{theme.colors.background}}"
+        },
+        "children": [
+          {
+            "id": "v3_21",
+            "type": "Header",
+            "props": {
+              "size": {
+                "height": 52
+              },
+              "title": "Notes",
+              "showBack": false,
+              "showAvatar": true
+            }
+          },
+          {
+            "id": "v3_22",
+            "type": "Repeater",
+            "props": {
+              "gap": 10,
+              "map": {
+                "body": "body",
+                "meta": {
+                  "from": "updated_at",
+                  "format": "date"
+                },
+                "tags": "labels",
+                "title": "title",
+                "pinned": "pinned"
+              },
+              "props": {
+                "excerptLines": 3,
+                "showAccentBar": false
+              },
+              "source": "query.notes",
+              "component": "NoteCard",
+              "emptyText": "No notes yet"
+            }
+          }
+        ]
+      },
+      "glyph": "note",
+      "route": "/notes",
+      "isEntry": false,
+      "sources": [
+        {
+          "id": "notes",
+          "from": "notes",
+          "limit": 30,
+          "order": "pinned.desc"
+        }
+      ],
+      "requiresRole": null
+    }
+  ],
+  "theme": {
+    "style": "neumorphic",
+    "palette": "graphite"
+  },
+  "features": [
+    "notes"
+  ],
+  "strippedScreens": [
+    "scr_timesheets"
+  ],
+  "dataSources": [
+    {
+      "id": "notes",
+      "name": "Notes",
+      "table": "notes",
+      "title": "title",
+      "columns": [
+        "id",
+        "title",
+        "body",
+        "body_format",
+        "pinned",
+        "labels",
+        "project_id",
+        "task_id",
+        "updated_at"
+      ],
+      "writable": [
+        "title",
+        "body",
+        "pinned",
+        "labels"
+      ]
+    },
+    {
+      "id": "projects",
+      "name": "Projects",
+      "table": "projects",
+      "title": "name",
+      "columns": [
+        "id",
+        "key",
+        "name",
+        "description",
+        "status",
+        "colour",
+        "due_on",
+        "starts_on",
+        "owner_id",
+        "updated_at"
+      ],
+      "writable": []
+    },
+    {
+      "id": "tasks",
+      "name": "Tasks",
+      "table": "tasks",
+      "title": "title",
+      "columns": [
+        "id",
+        "title",
+        "notes",
+        "status",
+        "priority",
+        "due_at",
+        "completed_at",
+        "labels",
+        "position",
+        "project_id",
+        "assignee_id",
+        "updated_at"
+      ],
+      "writable": [
+        "title",
+        "notes",
+        "status",
+        "priority",
+        "due_at",
+        "completed_at",
+        "labels",
+        "position"
+      ]
+    }
+  ],
+  "settings": {
+    "locale": "en-CA",
+    "appName": "Northstar Projects",
+    "timezone": "America/Toronto"
+  },
+  "organization": {
+    "id": "11111111-1111-1111-1111-111111111111"
+  },
+  "trace": [
+    {
+      "step": "Organisation-scope assignment",
+      "detail": "priority 10",
+      "hit": true
+    }
+  ]
+}

@@ -36,9 +36,22 @@ the real project.
 So the suites need no network and no credentials. They test the client, not the
 database — for the database, run `platform/supabase/tests/verify.sql`.
 
-The stub's test users are `maya@northstar.ca` and `daniel@brightroof.ca` with
-the password `correct-horse`. **That password exists only inside the stub**; it
-is not set on the real accounts.
+The stub's test users all use the password `correct-horse`. **That password
+exists only inside the stub**; it is not set on the real accounts.
+
+| User | Layout it resolves to |
+|---|---|
+| `daniel@brightroof.ca` | the app's built-in layout (no design assigned) |
+| `maya@northstar.ca` | a skeletal published design with no bound data |
+| `lee@northstar.ca` | the live published design, v3, bound to tasks, projects and notes |
+
+Cover new behaviour on the path production takes. The live tenant runs a
+published design; a bug that emptied every bound list on that path shipped with
+every suite green, because the data tests only signed in as `daniel`.
+
+The stub also refuses what the database refuses — for telemetry, the same
+`path_events` CHECK on the event name — so a client sending a word the table
+rejects fails here instead of losing data silently in production.
 
 If the database's response shapes change, refresh `fixtures/` from the live
 project, or the suites will keep passing against shapes that no longer exist.

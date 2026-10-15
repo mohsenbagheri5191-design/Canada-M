@@ -53,6 +53,10 @@ function shape(payload, { source, fetchedAt }) {
     schemaVersion: payload.schemaVersion ?? 1,
     builtIn: false,
     features: payload.features ?? [],
+    // The allowlist the data provider is built from. Without it every bound
+    // list on a published design renders its empty state while the tables
+    // behind it are full — which is exactly what shipped until this line.
+    dataSources: payload.dataSources ?? [],
     strippedScreens: payload.strippedScreens ?? [],
     settings: payload.settings ?? {},
     organization: payload.organization ?? null,

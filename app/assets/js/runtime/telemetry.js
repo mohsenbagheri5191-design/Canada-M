@@ -108,9 +108,13 @@ export function createTelemetry({ enabled = true } = {}) {
       push({ route_path: path, event: "view", node_id: screenId, metadata: {} });
     },
 
-    /** A node was tapped. */
+    /**
+     * A node was tapped. Recorded as "action", the schema's word for it: the
+     * table's CHECK names view, exit, action and error, and a batch carrying any
+     * other word is refused whole, taking its views down with it.
+     */
     tap(nodeId, { nodeType = null } = {}) {
-      push({ route_path: currentPath, event: "tap", node_id: nodeId, metadata: nodeType ? { type: nodeType } : {} });
+      push({ route_path: currentPath, event: "action", node_id: nodeId, metadata: nodeType ? { type: nodeType } : {} });
     },
 
     /** A screen failed to render. Worth knowing about more than any tap. */

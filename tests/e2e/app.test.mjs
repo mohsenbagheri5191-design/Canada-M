@@ -208,6 +208,8 @@ await post("/__stub/reset");
   check("events carry the design version they happened on", pathEvents.every((e) => e.design_version_id === "66666666-6666-6666-6666-666666666666"));
   check("events carry one session id", new Set(pathEvents.map((e) => e.session_id)).size === 1);
   check("no retry bookkeeping leaks into the payload", pathEvents.every((e) => !("tries" in e) && !("__retried" in e)));
+  const { rejectedEvents } = await fetch(`http://localhost:${PORT}/__stub/received`).then((r) => r.json());
+  check("every event uses a word the table accepts", rejectedEvents.length === 0, rejectedEvents.join(","));
 
   await context.close();
 }

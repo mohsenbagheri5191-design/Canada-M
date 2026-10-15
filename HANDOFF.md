@@ -8,7 +8,7 @@ Prepared 2026-10-10 by the agent that built it. Owner: Mohsen Bagheri (GitHub: m
 ## 0. READ THIS FIRST
 
 - What it is: a multi-tenant platform. An admin designs the screens of a mobile app in a desktop dashboard; the app asks the database which design applies to the signed-in user and renders it (server-driven UI). Backend: Supabase (Postgres, Auth, Edge Functions, pg_cron). Frontends: plain HTML/CSS and native ES modules, no build step, no framework. Hosting: GitHub Pages.
-- State: working, deployed, tested. Everything is in the repository: code, all 24 database migrations, demo seed data, the Edge Function source and the test suites.
+- State: working, deployed, tested. Everything is in the repository: code, all 25 database migrations, demo seed data, the Edge Function source and the test suites.
 - Biggest open item: the dashboard's Design Studio saves designs in the browser (localStorage). It does not yet read or write designs in Supabase, so putting a new design live is currently done with SQL (section 6.4). Wiring that up is next step #1 (section 8.2).
 - Two products share this repository. Only work in the files listed in section 3.1.
 - Hard rules (section 7): the repo is PUBLIC, never commit secrets; never expose the Supabase service role key; never touch the other Supabase project (amazon-market-research-pro); work on the branch claude/admin-dashboard-design-ptn7z5.
@@ -107,7 +107,7 @@ Prepared 2026-10-10 by the agent that built it. Owner: Mohsen Bagheri (GitHub: m
 - site/index.html: landing page served at /. site/artifact.html: the same page as one file.
 - dashboard/: the admin and design dashboard (desktop). Docs: README.md, START-HERE.md, BRIEF.md, INTEGRATION.md.
 - app/: the end-user mobile web app (server-driven). Doc: app/README.md.
-- platform/: the backend. platform/README.md, and platform/supabase/ with MIGRATIONS.md, migrations/ (24 files), seed.sql, functions/invite-user/index.ts, tests/verify.sql.
+- platform/: the backend. platform/README.md, and platform/supabase/ with MIGRATIONS.md, migrations/ (25 files), seed.sql, functions/invite-user/index.ts, tests/verify.sql.
 - tests/e2e/: five Playwright browser suites and a stub server. Doc: tests/e2e/README.md.
 - scripts/build-site.sh: builds public/ (site + app + dashboard + .nojekyll) for deployment.
 - .github/workflows/pages.yml: on every push to the working branch, builds and publishes gh-pages.
@@ -227,7 +227,7 @@ organizations, app_users, org_settings, audit_log, designs, design_versions, rou
 
 ### 5.4 Migrations, seed, Edge Function
 
-- platform/supabase/migrations/: all 24 applied migrations, named with their live version numbers and identical to the live history (checked by md5). platform/supabase/MIGRATIONS.md explains each.
+- platform/supabase/migrations/: all 25 applied migrations, named with their live version numbers and identical to the live history (checked by md5). platform/supabase/MIGRATIONS.md explains each.
 - platform/supabase/seed.sql: the demo data above, without accounts or secrets. Safe to re-run.
 - platform/supabase/functions/invite-user/index.ts: the deployed source (JWT verification on).
 
@@ -267,7 +267,7 @@ npx playwright install chromium   # or set CHROMIUM_PATH=/path/to/chrome
 npm test
 ```
 
-Expected: all 5 suites pass (app 34 checks, data 32, outbox 11, dashboard, studio). The stub server serves the repository and fakes Supabase with payloads captured from the live database. Its users maya@northstar.ca and daniel@brightroof.ca with password correct-horse exist ONLY inside the stub.
+Expected: all 5 suites pass (app 35 checks, data 39, outbox 11, dashboard, studio). The stub server serves the repository and fakes Supabase with payloads captured from the live database. Its users maya@northstar.ca, daniel@brightroof.ca and lee@northstar.ca (the live published design) with password correct-horse exist ONLY inside the stub. Playwright is a regular dependency, so it installs even where npm skips dev packages; it still needs a browser (the install line above).
 
 ### 6.3 Database invariants
 
@@ -334,7 +334,7 @@ Rollback: the same three updates with the two version ids swapped. Apps pick the
 
 - Dashboard: 8 tabs; Design Studio with canvas, layers, typed inspector, theme editor (styles, palettes, presets) and publish flow; Design Library, Assignments, Paths (resolution trace), App Data, Features, Rules editor. All of it works on the dashboard's local data (see 8.2 #1).
 - App: sign-in, cache-first layout, routing with dead-route recovery, per-screen error boundary, theme normalization, data binding, writes with rollback, offline outbox, preview links, telemetry, built-in fallback layout.
-- Backend: 24 migrations, RLS on every table, the resolver with trace and data allowlist, preview tokens, invite-only accounts and the invite-user function, the rules engine with cron.
+- Backend: 25 migrations, RLS on every table, the resolver with trace and data allowlist, preview tokens, invite-only accounts and the invite-user function, the rules engine with cron.
 - Deployment: automatic GitHub Pages deploys from the working branch (last deploy succeeded on 2026-10-10).
 - Tests: the 5 browser suites pass. verify.sql was re-run against the live database on 2026-10-10 and all 15 checks pass (the rules-cascade check had a setup bug that made it fail without testing anything; fixed in this handoff, the engine itself was correct).
 
@@ -362,6 +362,8 @@ Rollback: the same three updates with the two version ids swapped. Apps pick the
 - GitHub Pages: the workflow pushes the gh-pages branch, because the Actions token cannot create a Pages site through the API.
 - Check what a design actually renders before publishing it (the first published version was skeletal and showed empty screens).
 - Make sure a test's setup really triggers what it tests: the cascade check once set a task to the status it already had, so the rule never fired and the check failed for the wrong reason.
+- Test the path production actually takes. Every data test signed in as a user on the built-in layout, while the live tenant runs a published design; that path dropped the data allowlist and Projects and Notes showed empty on the live app (fixed 2026-10-15, now covered by a test).
+- A stub must refuse what the real server refuses. The app sent telemetry words the table's CHECK rejected ("tap", "exit"); the stub accepted them, so nobody saw the 400s (fixed 2026-10-15).
 
 ## 10. FIRST 30 MINUTES FOR THE NEW AGENT
 

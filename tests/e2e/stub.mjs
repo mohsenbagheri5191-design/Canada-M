@@ -43,17 +43,27 @@ const LAYOUT_DANIEL = {
 const PREVIEW_LIVE = JSON.parse(await readFile(new URL("./fixtures/preview-live.json", import.meta.url), "utf8"));
 const DATA_SOURCES = JSON.parse(await readFile(new URL("./fixtures/data-sources.json", import.meta.url), "utf8"));
 const ROWS = JSON.parse(await readFile(new URL("./fixtures/rows.json", import.meta.url), "utf8"));
+// The live v3 design exactly as resolve_layout returns it for a Northstar user:
+// a *published* design with bound sources. The other two users cover the
+// skeletal design and the built-in fallback; neither binds data through the
+// published path, which is how a bug that emptied every bound list on a
+// published design shipped with every suite green.
+const LAYOUT_PUBLISHED = JSON.parse(await readFile(new URL("./fixtures/layout-published.json", import.meta.url), "utf8"));
 
 const USERS = {
   "maya@northstar.ca": { id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", role: "app_user", full_name: "Maya Chen", organization_id: "11111111-1111-1111-1111-111111111111", password: "correct-horse", layout: { ...LAYOUT_MAYA, dataSources: DATA_SOURCES } },
   "daniel@brightroof.ca": { id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", role: "app_user", full_name: "Daniel Roy", organization_id: "22222222-2222-2222-2222-222222222222", password: "correct-horse", layout: { ...LAYOUT_DANIEL, dataSources: DATA_SOURCES } },
+  "lee@northstar.ca": { id: "cccccccc-cccc-cccc-cccc-cccccccccccc", role: "app_user", full_name: "Lee Park", organization_id: "11111111-1111-1111-1111-111111111111", password: "correct-horse", layout: LAYOUT_PUBLISHED },
 };
 
 /**
  * What the app sent, so the test can assert on the requests it built rather
  * than only on what came back.
  */
-export const received = { pathEvents: [], queries: [], writes: [], layoutCalls: 0, previewCalls: 0 };
+export const received = { pathEvents: [], rejectedEvents: [], queries: [], writes: [], layoutCalls: 0, previewCalls: 0 };
+
+/** path_events_event_check, as of migration 20261015134216. */
+const PATH_EVENT_TYPES = new Set(["view", "exit", "action", "error"]);
 
 let mode = { failLayout: false, failWrites: false, offline: false };
 
@@ -108,6 +118,7 @@ export const server = createServer(async (req, res) => {
   if (path === "/__stub/received") return send(res, 200, received);
   if (path === "/__stub/reset") {
     received.pathEvents = [];
+    received.rejectedEvents = [];
     received.queries = [];
     received.writes = [];
     received.layoutCalls = 0;
@@ -230,8 +241,16 @@ export const server = createServer(async (req, res) => {
   if (path === "/rest/v1/path_events" && req.method === "POST") {
     const user = userFromAuth(req);
     if (!user) return send(res, 401, { message: "JWT expired" });
-    const rows = await body(req);
-    received.pathEvents.push(...(Array.isArray(rows) ? rows : [rows]));
+    const rows = [].concat(await body(req));
+    // The same CHECK the table has. Accepting any word here is how the app
+    // shipped sending "tap" and "exit" while the database refused both, and
+    // with them every batch they were part of.
+    const bad = rows.find((r) => !PATH_EVENT_TYPES.has(r?.event));
+    if (bad) {
+      received.rejectedEvents.push(bad.event);
+      return send(res, 400, { code: "23514", message: 'new row for relation "path_events" violates check constraint "path_events_event_check"' });
+    }
+    received.pathEvents.push(...rows);
     return send(res, 201, {});
   }
 

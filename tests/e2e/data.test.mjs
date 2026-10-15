@@ -238,6 +238,60 @@ await post("/__stub/reset");
 }
 
 /* ========================================================================= */
+console.log("\n7. A published design binds data too");
+// Every section above signs in as a user on the built-in layout. The live
+// tenant runs a *published* design, which takes a different path through the
+// layout provider; that path once dropped the data allowlist, and every list
+// on it rendered empty while the tables were full.
+await post("/__stub/reset");
+{
+  const { page, context } = await signedIn("lee@northstar.ca");
+  const refusals = [];
+  page.on("console", (m) => {
+    if (m.text().includes("which the server did not offer")) refusals.push(m.text());
+  });
+
+  const taskRows = await page.locator('[data-node-type="TaskRow"]').count();
+  check("Today lists the real tasks", taskRows >= 8, `${taskRows} rows`);
+
+  await page.click(".tab:nth-child(2)");
+  await page.waitForTimeout(900);
+  const projects = await page.locator('[data-node-type="ProjectCard"]').count();
+  check("Projects lists the real projects", projects === 3, `${projects} cards`);
+
+  await page.click(".tab:nth-child(3)");
+  await page.waitForTimeout(900);
+  const notes = await page.locator('[data-node-type="NoteCard"]').count();
+  check("Notes lists the real notes", notes === 5, `${notes} cards`);
+
+  const { queries } = await got();
+  const tables = new Set(queries.map((q) => q.table));
+  check("every bound source reached the server", ["tasks", "projects", "notes"].every((t) => tables.has(t)), [...tables].join(","));
+  check("no source was refused as not offered", refusals.length === 0, refusals[0] ?? "");
+
+  // A tick is recorded as telemetry too. Hide the page so the queue flushes
+  // now rather than in fifteen seconds, then check the table took the batch.
+  await page.click(".tab:nth-child(1)");
+  await page.waitForTimeout(700);
+  await page.click('[data-node-type="TaskRow"]:has-text("Review vendor quotes") [data-action="task.toggle"]');
+  await page.waitForTimeout(700);
+  await page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await page.waitForTimeout(700);
+  const { pathEvents, rejectedEvents } = await got();
+  // The stub keeps writes across resets, so section 4's tick may make this one a
+  // reopen; either is a tap on a task.
+  const tick = pathEvents.find((e) => e.event === "action");
+  check("a tick is recorded as an action", /^task\.(complete|reopen)$/.test(tick?.metadata?.type ?? ""), JSON.stringify(tick?.metadata ?? null));
+  check("the table accepted every event", rejectedEvents.length === 0, rejectedEvents.join(","));
+
+  await page.screenshot({ path: `${OUT}/x-app-published.png` });
+  await context.close();
+}
+
+/* ========================================================================= */
 console.log("");
 const failed = results.filter((r) => !r.ok);
 console.log(`${results.length - failed.length}/${results.length} checks passed`);

@@ -25,7 +25,7 @@ product on the same account. Nothing here touches it.
 
 | Path | What it is |
 |---|---|
-| [`supabase/migrations/`](supabase/migrations/) | all 24 applied migrations, identical to the live history (checked by md5) |
+| [`supabase/migrations/`](supabase/migrations/) | all 25 applied migrations, identical to the live history (checked by md5) |
 | [`supabase/MIGRATIONS.md`](supabase/MIGRATIONS.md) | what each migration does and why, and how to rebuild elsewhere |
 | [`supabase/seed.sql`](supabase/seed.sql) | the demo tenants, designs, projects, tasks and notes — no accounts |
 | [`supabase/functions/invite-user/`](supabase/functions/invite-user/) | the one Edge Function, as deployed |

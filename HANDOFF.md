@@ -104,7 +104,7 @@ Prepared 2026-10-10 by the agent that built it. Owner: Mohsen Bagheri (GitHub: m
 
 ### 3.1 This project's files (work only here)
 
-- site/index.html: landing page served at /. site/artifact.html: the same page as one file.
+- site/index.html: landing page served at /.
 - dashboard/: the admin and design dashboard (desktop). Docs: README.md, START-HERE.md, BRIEF.md, INTEGRATION.md.
 - app/: the end-user mobile web app (server-driven). Doc: app/README.md.
 - platform/: the backend. platform/README.md, and platform/supabase/ with MIGRATIONS.md, migrations/ (25 files), seed.sql, functions/invite-user/index.ts, tests/verify.sql.
